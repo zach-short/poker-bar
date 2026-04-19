@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
 import useSWR from 'swr';
 import { fetcher, DrinkRecipe, InventoryItem } from '@/lib/bar-api';
 
@@ -12,19 +11,8 @@ function canMake(drink: DrinkRecipe, inventory: InventoryItem[]): boolean {
 export default function MenuPage() {
   const { data: drinks = [] } = useSWR<DrinkRecipe[]>('/api/drinks', fetcher);
   const { data: inventory = [] } = useSWR<InventoryItem[]>('/api/inventory', fetcher);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const available = drinks.filter((d) => canMake(d, inventory));
-
-  function handlePrint() {
-    const now = new Date();
-    const month = now.toLocaleString('en-US', { month: 'short' }).toLowerCase();
-    const day = now.getDate();
-    const prev = document.title;
-    document.title = `menu_${month}_${day}`;
-    window.print();
-    document.title = prev;
-  }
 
   return (
     <>
@@ -109,49 +97,9 @@ export default function MenuPage() {
           text-align: center;
         }
 
-        .print-btn {
-          position: fixed;
-          bottom: 2rem;
-          right: 2rem;
-          background: #c9a84c;
-          color: #000;
-          border: none;
-          padding: 0.65rem 1.4rem;
-          font-family: 'Cinzel', serif;
-          font-size: 0.75rem;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          cursor: pointer;
-          border-radius: 2px;
-          font-weight: 600;
-        }
-
-        .print-btn:hover {
-          background: #e2bc5e;
-        }
-
-        @media print {
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          body {
-            background: #000 !important;
-          }
-
-          .print-btn {
-            display: none !important;
-          }
-
-          .menu-root {
-            min-height: 100vh;
-            justify-content: center;
-          }
-        }
       `}</style>
 
-      <div className='menu-root' ref={printRef}>
+      <div className='menu-root'>
         <h1 className='menu-title'>Menu</h1>
         <hr className='menu-rule' />
 
@@ -174,9 +122,6 @@ export default function MenuPage() {
         <p className='menu-footer'>Tonight&apos;s Selection</p>
       </div>
 
-      <button className='print-btn' onClick={handlePrint}>
-        Download PDF
-      </button>
     </>
   );
 }

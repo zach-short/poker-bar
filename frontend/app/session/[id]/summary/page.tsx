@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function SummaryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -60,7 +61,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
             <div key={player.id} className='border border-border rounded-md'>
               <div className='flex items-center justify-between px-4 py-3 border-b border-border'>
                 <span className='text-sm font-medium'>{player.name}</span>
-                <span className='text-sm font-semibold text-primary'>${subtotal.toFixed(2)}</span>
+                <div className='flex items-center gap-3'>
+                  <span className='text-sm font-semibold text-primary'>${subtotal.toFixed(2)}</span>
+                  <Link
+                    href={`/session/${id}/player/${player.id}`}
+                    className='text-[10px] tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50 rounded px-2 py-1'
+                  >
+                    Receipt
+                  </Link>
+                </div>
               </div>
               <div className='px-4 py-2 space-y-1.5'>
                 {playerOrders.map((order) => (

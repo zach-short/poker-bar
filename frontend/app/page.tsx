@@ -82,6 +82,7 @@ function Dashboard() {
 
       <nav className='flex flex-col border-t border-border'>
         {[
+          { label: 'Sessions', path: '/sessions' },
           { label: 'Inventory', path: '/inventory' },
           { label: 'Drinks', path: '/drinks' },
           { label: 'Menu', path: '/menu' },
