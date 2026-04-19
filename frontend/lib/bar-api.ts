@@ -72,6 +72,47 @@ export function markPlayerTabPaid(sessionId: string, playerId: string, paid = tr
   });
 }
 
+export interface BuyIn {
+  id: string;
+  sessionId: string;
+  playerId: string;
+  amount: number;
+  timestamp: string;
+}
+
+export interface Cashout {
+  id: string;
+  sessionId: string;
+  playerId: string;
+  amount: number;
+  timestamp: string;
+}
+
+export interface Payment {
+  id: string;
+  playerId: string;
+  amount: number;
+  note: string;
+  direction: 'received' | 'sent';
+  timestamp: string;
+}
+
+export function computeBalance(
+  playerId: string,
+  orders: Order[],
+  buyIns: BuyIn[],
+  cashouts: Cashout[],
+  payments: Payment[],
+): number {
+  const drinks   = orders   .filter(o => o.playerId === playerId).reduce((s, o) => s + o.price,  0);
+  const buys     = buyIns   .filter(b => b.playerId === playerId).reduce((s, b) => s + b.amount, 0);
+  const outs     = cashouts .filter(c => c.playerId === playerId).reduce((s, c) => s + c.amount, 0);
+  const received = payments .filter(p => p.playerId === playerId && p.direction === 'received').reduce((s, p) => s + p.amount, 0);
+  const sent     = payments .filter(p => p.playerId === playerId && p.direction === 'sent').reduce((s, p) => s + p.amount, 0);
+  // positive = they owe you, negative = you owe them
+  return drinks + buys - outs - received + sent;
+}
+
 export interface CreateOrderResponse {
   order: Order;
   lowStockWarnings: string[];

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { fetcher, apiFetch, Player, Session } from '@/lib/bar-api';
+import { fetcher, apiFetch, Player, Session, BuyIn } from '@/lib/bar-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -19,6 +19,7 @@ export default function NewSessionPage() {
   const [selected, setSelected] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [buyInAmount, setBuyInAmount] = useState('20');
   const [creating, setCreating] = useState(false);
   const [starting, setStarting] = useState(false);
 
@@ -57,6 +58,17 @@ export default function NewSessionPage() {
           playerIds: selected.map((p) => p.id),
         }),
       });
+      const amount = parseFloat(buyInAmount);
+      if (amount > 0 && selected.length > 0) {
+        await Promise.all(
+          selected.map((p) =>
+            apiFetch<BuyIn>('/api/buyins', {
+              method: 'POST',
+              body: JSON.stringify({ sessionId: session.id, playerId: p.id, amount }),
+            })
+          )
+        );
+      }
       router.push(`/session/${session.id}`);
     } catch (e) {
       toast.error((e as Error).message);
@@ -90,6 +102,25 @@ export default function NewSessionPage() {
             className='h-11'
             placeholder='Poker Night — Apr 11'
           />
+        </div>
+
+        <div>
+          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>
+            Buy-in amount
+          </label>
+          <div className='relative'>
+            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm'>$</span>
+            <Input
+              type='number'
+              min='0'
+              step='5'
+              value={buyInAmount}
+              onChange={(e) => setBuyInAmount(e.target.value)}
+              className='h-11 pl-7'
+              placeholder='20'
+            />
+          </div>
+          <p className='text-xs text-muted-foreground mt-1'>Applied to all players at session start</p>
         </div>
 
         <div>

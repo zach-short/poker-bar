@@ -43,6 +43,31 @@ type Session struct {
 	PlayerIDs []primitive.ObjectID `bson:"playerIds" json:"playerIds"`
 }
 
+type BuyIn struct {
+	ID        primitive.ObjectID `bson:"_id" json:"id"`
+	SessionID primitive.ObjectID `bson:"sessionId" json:"sessionId"`
+	PlayerID  primitive.ObjectID `bson:"playerId" json:"playerId"`
+	Amount    float64            `bson:"amount" json:"amount"`
+	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
+}
+
+type Cashout struct {
+	ID        primitive.ObjectID `bson:"_id" json:"id"`
+	SessionID primitive.ObjectID `bson:"sessionId" json:"sessionId"`
+	PlayerID  primitive.ObjectID `bson:"playerId" json:"playerId"`
+	Amount    float64            `bson:"amount" json:"amount"`
+	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
+}
+
+type Payment struct {
+	ID        primitive.ObjectID `bson:"_id" json:"id"`
+	PlayerID  primitive.ObjectID `bson:"playerId" json:"playerId"`
+	Amount    float64            `bson:"amount" json:"amount"`
+	Note      string             `bson:"note" json:"note"`
+	Direction string             `bson:"direction" json:"direction"` // "received" | "sent"
+	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
+}
+
 type Order struct {
 	ID           primitive.ObjectID `bson:"_id" json:"id"`
 	SessionID    primitive.ObjectID `bson:"sessionId" json:"sessionId"`

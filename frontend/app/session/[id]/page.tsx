@@ -4,9 +4,14 @@ import { use, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { fetcher, apiFetch, markPlayerTabPaid, Session, Player, Order, DrinkRecipe, InventoryItem, CreateOrderResponse } from '@/lib/bar-api';
+import {
+  fetcher, apiFetch, markPlayerTabPaid,
+  Session, Player, Order, DrinkRecipe, InventoryItem, CreateOrderResponse,
+  BuyIn, Cashout,
+} from '@/lib/bar-api';
 import { DrinkPickerModal } from '@/components/DrinkPickerModal';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,17 +36,27 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   });
   const { data: players = [] } = useSWR<Player[]>('/api/players', fetcher);
   const { data: orders = [], mutate: mutateOrders } = useSWR<Order[]>(
-    `/api/orders?sessionId=${id}`,
-    fetcher,
-    { refreshInterval: 15000 }
+    `/api/orders?sessionId=${id}`, fetcher, { refreshInterval: 15000 }
+  );
+  const { data: buyIns = [], mutate: mutateBuyIns } = useSWR<BuyIn[]>(
+    `/api/buyins?sessionId=${id}`, fetcher
   );
   const { data: drinks = [] } = useSWR<DrinkRecipe[]>('/api/drinks', fetcher);
   const { data: inventory = [], mutate: mutateInventory } = useSWR<InventoryItem[]>('/api/inventory', fetcher);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
-  const [ending, setEnding] = useState(false);
   const [elapsed, setElapsed] = useState('0m');
+
+  // Re-buy state
+  const [rebuyPlayerId, setRebuyPlayerId] = useState<string | null>(null);
+  const [rebuyAmount, setRebuyAmount] = useState('');
+  const [rebuying, setRebuying] = useState(false);
+
+  // Cashout step state
+  const [showCashout, setShowCashout] = useState(false);
+  const [cashoutAmounts, setCashoutAmounts] = useState<Record<string, string>>({});
+  const [closingSession, setClosingSession] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -64,6 +79,11 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     [orders]
   );
 
+  const buyInTotal = useCallback(
+    (playerId: string) => buyIns.filter((b) => b.playerId === playerId).reduce((s, b) => s + b.amount, 0),
+    [buyIns]
+  );
+
   const isTabPaid = useCallback(
     (playerId: string) => {
       const playerOrders = orders.filter((o) => o.playerId === playerId);
@@ -74,16 +94,58 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
   async function handleMarkPaid(playerId: string) {
     const alreadyPaid = isTabPaid(playerId);
-    const updated = orders.map((o) =>
-      o.playerId === playerId ? { ...o, paid: !alreadyPaid } : o
-    );
-    mutateOrders(updated, false);
+    mutateOrders(orders.map((o) => o.playerId === playerId ? { ...o, paid: !alreadyPaid } : o), false);
     try {
       await markPlayerTabPaid(id, playerId, !alreadyPaid);
       mutateOrders();
     } catch (e) {
       mutateOrders();
       toast.error((e as Error).message);
+    }
+  }
+
+  async function handleRebuy(playerId: string) {
+    const amount = parseFloat(rebuyAmount);
+    if (!amount || amount <= 0) return;
+    setRebuying(true);
+    try {
+      await apiFetch<BuyIn>('/api/buyins', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: id, playerId, amount }),
+      });
+      toast.success(`Re-buy $${amount.toFixed(2)} added`);
+      mutateBuyIns();
+      setRebuyPlayerId(null);
+      setRebuyAmount('');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRebuying(false);
+    }
+  }
+
+  async function handleCloseSession() {
+    setClosingSession(true);
+    try {
+      await Promise.all(
+        sessionPlayers.map((p) => {
+          const amount = parseFloat(cashoutAmounts[p.id] ?? '0') || 0;
+          if (amount > 0) {
+            return apiFetch<Cashout>('/api/cashouts', {
+              method: 'POST',
+              body: JSON.stringify({ sessionId: id, playerId: p.id, amount }),
+            });
+          }
+        })
+      );
+      await apiFetch(`/api/sessions/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'closed' }),
+      });
+      router.push(`/session/${id}/summary`);
+    } catch (e) {
+      toast.error((e as Error).message);
+      setClosingSession(false);
     }
   }
 
@@ -94,21 +156,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   async function handleDrinkSelect(drink: DrinkRecipe) {
     if (!selectedPlayerId) return;
     setShowPicker(false);
-
     const tempId = `temp-${Date.now()}`;
     const optimistic: Order = {
-      id: tempId,
-      sessionId: id,
-      playerId: selectedPlayerId,
-      drinkId: drink.id,
-      drinkName: drink.name,
-      price: drink.price,
-      costEstimate: drink.costEstimate,
-      timestamp: new Date().toISOString(),
-      paid: false,
+      id: tempId, sessionId: id, playerId: selectedPlayerId,
+      drinkId: drink.id, drinkName: drink.name, price: drink.price,
+      costEstimate: drink.costEstimate, timestamp: new Date().toISOString(), paid: false,
     };
     mutateOrders([optimistic, ...orders], false);
-
     try {
       const res = await apiFetch<CreateOrderResponse>('/api/orders', {
         method: 'POST',
@@ -116,7 +170,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       });
       toast.success(`${drink.name} added`);
       if (res.lowStockWarnings?.length) {
-        res.lowStockWarnings.forEach((name) => toast.warning(`Low stock: ${name}`));
+        res.lowStockWarnings.forEach((n) => toast.warning(`Low stock: ${n}`));
       }
       mutateOrders();
       mutateInventory();
@@ -139,24 +193,72 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     }
   }
 
-  async function handleEndSession() {
-    setEnding(true);
-    try {
-      await apiFetch(`/api/sessions/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'closed' }),
-      });
-      router.push(`/session/${id}/summary`);
-    } catch (e) {
-      toast.error((e as Error).message);
-      setEnding(false);
-    }
-  }
-
   if (!session) {
     return <div className='min-h-screen flex items-center justify-center text-muted-foreground text-sm tracking-widest'>Loading…</div>;
   }
 
+  // ── Cashout step ─────────────────────────────────────────────────────────────
+  if (showCashout) {
+    return (
+      <main className='min-h-screen flex flex-col max-w-lg mx-auto px-6 py-10'>
+        <div className='mb-8'>
+          <h1 className='text-base font-semibold tracking-widest uppercase text-primary mb-1'>Cash Out</h1>
+          <p className='text-xs text-muted-foreground'>Enter each player&apos;s chip value to close the session.</p>
+        </div>
+
+        <div className='space-y-4 flex-1'>
+          {sessionPlayers.map((player) => {
+            const drinks = tabTotal(player.id);
+            const buys = buyInTotal(player.id);
+            return (
+              <div key={player.id} className='border border-border rounded-md px-4 py-4'>
+                <div className='flex items-center justify-between mb-3'>
+                  <span className='text-sm font-medium'>{player.name}</span>
+                  <div className='text-right text-xs text-muted-foreground'>
+                    <span>Bought in ${buys.toFixed(2)}</span>
+                    {drinks > 0 && <span> · Drinks ${drinks.toFixed(2)}</span>}
+                  </div>
+                </div>
+                <div className='relative'>
+                  <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm'>$</span>
+                  <Input
+                    type='number'
+                    min='0'
+                    step='1'
+                    placeholder='0'
+                    value={cashoutAmounts[player.id] ?? ''}
+                    onChange={(e) => setCashoutAmounts((prev) => ({ ...prev, [player.id]: e.target.value }))}
+                    className='h-11 pl-7'
+                  />
+                </div>
+                <p className='text-xs text-muted-foreground mt-1'>Chip value they&apos;re walking away with</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className='flex gap-3 mt-8'>
+          <Button
+            variant='outline'
+            className='flex-1 h-12 text-xs tracking-widest uppercase'
+            onClick={() => setShowCashout(false)}
+            disabled={closingSession}
+          >
+            Back
+          </Button>
+          <Button
+            className='flex-1 h-12 text-xs tracking-widest uppercase'
+            onClick={handleCloseSession}
+            disabled={closingSession}
+          >
+            {closingSession ? 'Closing…' : 'Close Session'}
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
+  // ── Main session view ─────────────────────────────────────────────────────────
   return (
     <main className='min-h-screen flex flex-col max-w-lg mx-auto'>
       {/* Top bar */}
@@ -169,10 +271,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           variant='destructive'
           size='sm'
           className='shrink-0 h-9 text-xs tracking-widest uppercase'
-          onClick={handleEndSession}
-          disabled={ending}
+          onClick={() => setShowCashout(true)}
         >
-          {ending ? 'Ending…' : 'End Session'}
+          End Session
         </Button>
       </div>
 
@@ -181,7 +282,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         {sessionPlayers.map((player) => (
           <button
             key={player.id}
-            onClick={() => setSelectedPlayerId(player.id)}
+            onClick={() => {
+              setSelectedPlayerId(player.id);
+              setRebuyPlayerId(null);
+            }}
             className={cn(
               'flex-none flex flex-col items-center gap-1 px-4 py-2.5 rounded border transition-colors min-w-[72px]',
               selectedPlayerId === player.id
@@ -198,12 +302,57 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         ))}
       </div>
 
+      {/* Re-buy row */}
+      {selectedPlayerId && (
+        <div className='px-6 py-3 border-b border-border flex items-center justify-between gap-3'>
+          <div className='text-xs text-muted-foreground'>
+            Buy-ins: <span className='text-foreground font-medium'>${buyInTotal(selectedPlayerId).toFixed(2)}</span>
+          </div>
+          {rebuyPlayerId === selectedPlayerId ? (
+            <div className='flex items-center gap-2'>
+              <div className='relative w-28'>
+                <span className='absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs'>$</span>
+                <Input
+                  type='number'
+                  min='0'
+                  step='5'
+                  autoFocus
+                  placeholder='20'
+                  value={rebuyAmount}
+                  onChange={(e) => setRebuyAmount(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRebuy(selectedPlayerId)}
+                  className='h-8 pl-6 text-sm'
+                />
+              </div>
+              <button
+                onClick={() => handleRebuy(selectedPlayerId)}
+                disabled={rebuying || !rebuyAmount}
+                className='text-xs tracking-widest uppercase text-primary disabled:opacity-40'
+              >
+                Add
+              </button>
+              <button
+                onClick={() => { setRebuyPlayerId(null); setRebuyAmount(''); }}
+                className='text-xs text-muted-foreground'
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setRebuyPlayerId(selectedPlayerId); setRebuyAmount(''); }}
+              className='text-xs tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors'
+            >
+              + Re-buy
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Orders list */}
-      <div className='flex-1 px-6 py-4 pb-24'>
+      <div className='flex-1 px-6 py-4 pb-32'>
         {selectedOrders.length === 0 ? (
-          <p className='text-center text-muted-foreground text-xs tracking-widest uppercase py-12'>
-            No orders yet
-          </p>
+          <p className='text-center text-muted-foreground text-xs tracking-widest uppercase py-12'>No orders yet</p>
         ) : (
           <div className='divide-y divide-border border border-border rounded-md'>
             {selectedOrders.map((order) => (
