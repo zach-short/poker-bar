@@ -8,15 +8,14 @@ import { fetcher, apiFetch, Player, Session } from '@/lib/bar-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-function todayName() {
-  return `Poker Night — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-}
-
 export default function NewSessionPage() {
   const router = useRouter();
-  const { data: players = [], mutate } = useSWR<Player[]>('/api/players', fetcher);
+  const { data: players = [], mutate } = useSWR<Player[]>(
+    '/api/players',
+    fetcher,
+  );
 
-  const [name, setName] = useState(todayName);
+  const [name, setName] = useState('Poker');
   const [selected, setSelected] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -26,7 +25,7 @@ export default function NewSessionPage() {
   const filtered = players.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) &&
-      !selected.find((s) => s.id === p.id)
+      !selected.find((s) => s.id === p.id),
   );
 
   async function addNewPlayer() {
@@ -53,7 +52,10 @@ export default function NewSessionPage() {
     try {
       const session = await apiFetch<Session>('/api/sessions', {
         method: 'POST',
-        body: JSON.stringify({ name: name.trim(), playerIds: selected.map((p) => p.id) }),
+        body: JSON.stringify({
+          name: name.trim(),
+          playerIds: selected.map((p) => p.id),
+        }),
       });
       router.push(`/session/${session.id}`);
     } catch (e) {
@@ -71,18 +73,29 @@ export default function NewSessionPage() {
         >
           ← Back
         </button>
-        <h1 className='text-base font-semibold tracking-widest uppercase text-primary'>New Session</h1>
+        <h1 className='text-base font-semibold tracking-widest uppercase text-primary'>
+          New Session
+        </h1>
         <span className='w-16' />
       </div>
 
       <div className='space-y-6'>
         <div>
-          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>Session name</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className='h-11' placeholder='Poker Night — Apr 11' />
+          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>
+            Session name
+          </label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className='h-11'
+            placeholder='Poker Night — Apr 11'
+          />
         </div>
 
         <div>
-          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>Players</label>
+          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>
+            Players
+          </label>
           {selected.length > 0 && (
             <div className='flex flex-wrap gap-2 mb-3'>
               {selected.map((p) => (
@@ -92,7 +105,9 @@ export default function NewSessionPage() {
                 >
                   {p.name}
                   <button
-                    onClick={() => setSelected((prev) => prev.filter((x) => x.id !== p.id))}
+                    onClick={() =>
+                      setSelected((prev) => prev.filter((x) => x.id !== p.id))
+                    }
                     className='text-primary/60 hover:text-primary leading-none'
                   >
                     ×
@@ -112,7 +127,10 @@ export default function NewSessionPage() {
               {filtered.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => { setSelected((prev) => [...prev, p]); setSearch(''); }}
+                  onClick={() => {
+                    setSelected((prev) => [...prev, p]);
+                    setSearch('');
+                  }}
                   className='w-full text-left px-4 py-3 text-sm hover:bg-secondary transition-colors min-h-[44px]'
                 >
                   {p.name}
@@ -123,7 +141,9 @@ export default function NewSessionPage() {
         </div>
 
         <div>
-          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>Add new player</label>
+          <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>
+            Add new player
+          </label>
           <div className='flex gap-2'>
             <Input
               value={newPlayerName}

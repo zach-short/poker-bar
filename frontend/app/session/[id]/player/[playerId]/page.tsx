@@ -223,6 +223,10 @@ export default function PlayerReceiptPage({
         }
 
         @media print {
+          @page {
+            margin: 0;
+          }
+
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
