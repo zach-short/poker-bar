@@ -160,6 +160,40 @@ func CreateOrder(c *gin.Context) {
 	})
 }
 
+func MarkPlayerTabPaid(c *gin.Context) {
+	sessionID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session ID"})
+		return
+	}
+	playerID, err := primitive.ObjectIDFromHex(c.Param("playerId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid player ID"})
+		return
+	}
+
+	var req struct {
+		Paid bool `json:"paid"`
+	}
+	req.Paid = true
+	c.ShouldBindJSON(&req)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = config.GetCollection("orders").UpdateMany(
+		ctx,
+		bson.M{"sessionId": sessionID, "playerId": playerID},
+		bson.M{"$set": bson.M{"paid": req.Paid}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update orders"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"paid": req.Paid})
+}
+
 func DeleteOrder(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {

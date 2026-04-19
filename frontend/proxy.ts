@@ -5,7 +5,11 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const isPublic = pathname === '/' || pathname === '/login' || pathname.startsWith('/menu');
+  const isPublic =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname.startsWith('/menu') ||
+    pathname.startsWith('/receipt');
 
   if (!isPublic && !isLoggedIn) {
     return NextResponse.redirect(new URL('/login', req.url));

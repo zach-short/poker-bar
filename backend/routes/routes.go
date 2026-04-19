@@ -41,6 +41,7 @@ func SetupRoutes(r *gin.Engine) {
 		bar.GET("/orders", handlers.GetOrders)
 		bar.POST("/orders", handlers.CreateOrder)
 		bar.DELETE("/orders/:id", handlers.DeleteOrder)
+		bar.PATCH("/sessions/:id/players/:playerId/paid", handlers.MarkPlayerTabPaid)
 	}
 
 	_ = middleware.AuthMiddleware

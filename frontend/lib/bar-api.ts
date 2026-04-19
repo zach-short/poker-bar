@@ -62,6 +62,14 @@ export interface Order {
   price: number;
   costEstimate: number;
   timestamp: string;
+  paid: boolean;
+}
+
+export function markPlayerTabPaid(sessionId: string, playerId: string, paid = true) {
+  return apiFetch<{ paid: boolean }>(`/api/sessions/${sessionId}/players/${playerId}/paid`, {
+    method: 'PATCH',
+    body: JSON.stringify({ paid }),
+  });
 }
 
 export interface CreateOrderResponse {

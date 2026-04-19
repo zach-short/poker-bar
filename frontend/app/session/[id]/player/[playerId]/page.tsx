@@ -41,18 +41,18 @@ export default function PlayerReceiptPage({
   }
 
   async function handleShare() {
+    const publicUrl = `${window.location.origin}/receipt/${id}/${playerId}`;
     const title = `${player?.name ?? 'Receipt'} — ${session?.name ?? ''}`;
-    const text = `Tab: $${total.toFixed(2)} (${playerOrders.length} drink${playerOrders.length !== 1 ? 's' : ''})`;
-    const url = window.location.href;
+    const text = `Your tab: $${total.toFixed(2)}`;
 
     if (navigator.share) {
       try {
-        await navigator.share({ title, text, url });
+        await navigator.share({ title, text, url: publicUrl });
       } catch {
         // user cancelled
       }
     } else {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(publicUrl);
       alert('Link copied to clipboard');
     }
   }

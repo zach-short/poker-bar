@@ -4,7 +4,7 @@ import { use, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { fetcher, apiFetch, Session, Player, Order, DrinkRecipe, InventoryItem, CreateOrderResponse } from '@/lib/bar-api';
+import { fetcher, apiFetch, markPlayerTabPaid, Session, Player, Order, DrinkRecipe, InventoryItem, CreateOrderResponse } from '@/lib/bar-api';
 import { DrinkPickerModal } from '@/components/DrinkPickerModal';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
@@ -64,6 +64,29 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     [orders]
   );
 
+  const isTabPaid = useCallback(
+    (playerId: string) => {
+      const playerOrders = orders.filter((o) => o.playerId === playerId);
+      return playerOrders.length > 0 && playerOrders.every((o) => o.paid);
+    },
+    [orders]
+  );
+
+  async function handleMarkPaid(playerId: string) {
+    const alreadyPaid = isTabPaid(playerId);
+    const updated = orders.map((o) =>
+      o.playerId === playerId ? { ...o, paid: !alreadyPaid } : o
+    );
+    mutateOrders(updated, false);
+    try {
+      await markPlayerTabPaid(id, playerId, !alreadyPaid);
+      mutateOrders();
+    } catch (e) {
+      mutateOrders();
+      toast.error((e as Error).message);
+    }
+  }
+
   const selectedOrders = orders
     .filter((o) => o.playerId === selectedPlayerId)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -82,6 +105,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       price: drink.price,
       costEstimate: drink.costEstimate,
       timestamp: new Date().toISOString(),
+      paid: false,
     };
     mutateOrders([optimistic, ...orders], false);
 
@@ -167,6 +191,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           >
             <span className='text-xs font-medium truncate max-w-[80px]'>{player.name}</span>
             <span className='text-xs tabular-nums'>${tabTotal(player.id).toFixed(2)}</span>
+            {isTabPaid(player.id) && (
+              <span className='text-[9px] tracking-widest uppercase text-green-500'>Paid</span>
+            )}
           </button>
         ))}
       </div>
@@ -201,6 +228,23 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           </div>
         )}
       </div>
+
+      {/* Mark Paid */}
+      {selectedPlayerId && orders.filter((o) => o.playerId === selectedPlayerId).length > 0 && (
+        <div className='px-6 pb-6'>
+          <button
+            onClick={() => handleMarkPaid(selectedPlayerId)}
+            className={cn(
+              'w-full py-3 rounded border text-xs tracking-widest uppercase font-medium transition-colors',
+              isTabPaid(selectedPlayerId)
+                ? 'border-green-500/50 text-green-500 hover:border-green-500'
+                : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+            )}
+          >
+            {isTabPaid(selectedPlayerId) ? '✓ Paid — Mark Unpaid' : 'Mark Paid'}
+          </button>
+        </div>
+      )}
 
       {/* FAB */}
       <button

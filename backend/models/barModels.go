@@ -52,4 +52,5 @@ type Order struct {
 	Price        float64            `bson:"price" json:"price"`
 	CostEstimate float64            `bson:"costEstimate" json:"costEstimate"`
 	Timestamp    time.Time          `bson:"timestamp" json:"timestamp"`
+	Paid         bool               `bson:"paid" json:"paid"`
 }
