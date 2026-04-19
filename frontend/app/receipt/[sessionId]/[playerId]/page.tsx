@@ -5,11 +5,18 @@ import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return new Date(ts).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 export default function PublicReceiptPage({
@@ -18,24 +25,45 @@ export default function PublicReceiptPage({
   params: Promise<{ sessionId: string; playerId: string }>;
 }) {
   const { sessionId, playerId } = use(params);
-  const venmoHandle = process.env.NEXT_PUBLIC_VENMO_HANDLE;
-
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
   const session = sessions.find((s) => s.id === sessionId);
 
   const { data: players = [] } = useSWR<Player[]>('/api/players', fetcher);
   const player = players.find((p) => p.id === playerId);
 
-  const { data: orders = [] } = useSWR<Order[]>(`/api/orders?sessionId=${sessionId}`, fetcher);
+  const { data: orders = [] } = useSWR<Order[]>(
+    `/api/orders?sessionId=${sessionId}`,
+    fetcher,
+  );
   const playerOrders = orders
     .filter((o) => o.playerId === playerId)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
 
   const total = playerOrders.reduce((s, o) => s + o.price, 0);
 
-  const venmoUrl = venmoHandle
-    ? `https://account.venmo.com/pay?recipients=${venmoHandle}&amount=${total.toFixed(2)}&note=${encodeURIComponent(`Poker Night — ${session?.name ?? ''}`)}`
+  const venmoNote = encodeURIComponent(`${session?.name ?? ''}`);
+  const venmoRecipient = process.env.NEXT_PUBLIC_VENMO_HANDLE?.replace(
+    /^@/,
+    '',
+  );
+  const venmoDeepLink = venmoRecipient
+    ? `venmo://paycharge?txn=pay&recipients=${venmoRecipient}&amount=${total.toFixed(2)}&note=${venmoNote}`
     : null;
+  const venmoWebUrl = venmoRecipient
+    ? `https://account.venmo.com/pay?recipients=${venmoRecipient}&amount=${total.toFixed(2)}&note=${venmoNote}`
+    : null;
+
+  function handleVenmo() {
+    if (!venmoDeepLink || !venmoWebUrl) return;
+    window.location.href = venmoDeepLink;
+    // If the app isn't installed the page stays visible — fall back to web after 1.5s
+    setTimeout(() => {
+      if (!document.hidden) window.location.href = venmoWebUrl;
+    }, 1500);
+  }
 
   const isLoading = sessions.length === 0 || players.length === 0;
 
@@ -200,7 +228,9 @@ export default function PublicReceiptPage({
         <div className='receipt-card'>
           <p className='r-venue'>Poker Bar</p>
           <p className='r-name'>{player.name}</p>
-          <p className='r-date'>{formatDate(session.date)} · {session.name}</p>
+          <p className='r-date'>
+            {formatDate(session.date)} · {session.name}
+          </p>
 
           <hr className='r-divider' />
 
@@ -213,7 +243,14 @@ export default function PublicReceiptPage({
           ))}
 
           {playerOrders.length === 0 && (
-            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--muted-foreground)', padding: '0.75rem 0' }}>
+            <p
+              style={{
+                textAlign: 'center',
+                fontSize: '0.75rem',
+                color: 'var(--muted-foreground)',
+                padding: '0.75rem 0',
+              }}
+            >
               No orders
             </p>
           )}
@@ -228,14 +265,14 @@ export default function PublicReceiptPage({
           <p className='r-footer'>Good game</p>
         </div>
 
-        {venmoUrl && (
-          <a href={venmoUrl} className='venmo-btn' target='_blank' rel='noopener noreferrer'>
+        {venmoDeepLink && (
+          <button onClick={handleVenmo} className='venmo-btn'>
             <svg width='20' height='20' viewBox='0 0 24 24' fill='white'>
               <path d='M19.07 3C19.82 4.27 20.16 5.58 20.16 7.22C20.16 12.23 15.68 18.72 12.05 22H4.27L1 4.36L8.19 3.67L9.84 15.05C11.42 12.36 13.38 8.19 13.38 5.42C13.38 3.97 13.1 2.97 12.68 2.14L19.07 3Z' />
             </svg>
             Pay on Venmo
             <span className='venmo-amount'>${total.toFixed(2)}</span>
-          </a>
+          </button>
         )}
       </div>
     </>
