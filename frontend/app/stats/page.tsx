@@ -77,7 +77,7 @@ export default function StatsPage() {
 
   const cumMin = Math.min(0, ...data.map((d) => d.cumProfit));
   const cumMax = Math.max(0, ...data.map((d) => d.cumProfit));
-  const profitColor = totalProfit >= 0 ? 'hsl(var(--primary))' : 'hsl(var(--destructive))';
+  const profitColor = totalProfit >= 0 ? '#c9a84c' : '#e05252';
 
   if (closedSessions.length === 0) {
     return (
@@ -124,24 +124,24 @@ export default function StatsPage() {
                 <stop offset='95%' stopColor={profitColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' vertical={false} />
+            <CartesianGrid strokeDasharray='3 3' stroke='#222222' vertical={false} />
             <XAxis
               dataKey='date'
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: '#6b6560' }}
               axisLine={false}
               tickLine={false}
               dy={6}
             />
             <YAxis
               tickFormatter={(v) => `$${v}`}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: '#6b6560' }}
               axisLine={false}
               tickLine={false}
               width={52}
               domain={[cumMin - 5, cumMax + 5]}
             />
-            <Tooltip content={<CumTooltip />} cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }} />
-            <ReferenceLine y={0} stroke='hsl(var(--border))' strokeDasharray='4 2' />
+            <Tooltip content={<CumTooltip />} cursor={{ stroke: '#222222', strokeWidth: 1 }} />
+            <ReferenceLine y={0} stroke='#222222' strokeDasharray='4 2' />
             <Area
               type='monotone'
               dataKey='cumProfit'
@@ -160,24 +160,24 @@ export default function StatsPage() {
         <p className='text-xs tracking-widest uppercase text-muted-foreground mb-6'>Revenue vs Cost per Night</p>
         <ResponsiveContainer width='100%' height={200}>
           <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barCategoryGap='30%'>
-            <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' vertical={false} />
+            <CartesianGrid strokeDasharray='3 3' stroke='#222222' vertical={false} />
             <XAxis
               dataKey='date'
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: '#6b6560' }}
               axisLine={false}
               tickLine={false}
               dy={6}
             />
             <YAxis
               tickFormatter={(v) => `$${v}`}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: '#6b6560' }}
               axisLine={false}
               tickLine={false}
               width={52}
             />
-            <Tooltip content={<BarTooltip />} cursor={{ fill: 'hsl(var(--border) / 0.3)' }} />
-            <Bar dataKey='revenue' name='Revenue' fill='hsl(var(--primary))' radius={[2, 2, 0, 0]} opacity={0.9} />
-            <Bar dataKey='cost' name='Cost' fill='hsl(var(--muted-foreground))' radius={[2, 2, 0, 0]} opacity={0.5} />
+            <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Bar dataKey='revenue' name='Revenue' fill='#c9a84c' radius={[2, 2, 0, 0]} opacity={0.9} />
+            <Bar dataKey='cost' name='Cost' fill='#6b6560' radius={[2, 2, 0, 0]} opacity={0.5} />
           </BarChart>
         </ResponsiveContainer>
         <div className='flex gap-4 mt-4 justify-end'>
