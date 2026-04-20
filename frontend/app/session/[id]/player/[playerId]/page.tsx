@@ -41,13 +41,37 @@ export default function PlayerReceiptPage({
   }
 
   async function handleShare() {
-    const publicUrl = `${window.location.origin}/receipt/${id}/${playerId}`;
-    const title = `${player?.name ?? 'Receipt'} — ${session?.name ?? ''}`;
-    const text = `Your tab: $${total.toFixed(2)}`;
+    const title = `${player?.name ?? 'Receipt'} — ${formatDate(session?.date ?? '')}`;
 
+    // Try to share as an image first
+    if (receiptRef.current) {
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        const canvas = await html2canvas(receiptRef.current, {
+          backgroundColor: '#0d0d0d',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        const blob = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob((b) => b ? resolve(b) : reject(), 'image/png')
+        );
+        const file = new File([blob], `receipt-${player?.name ?? 'tab'}.png`, { type: 'image/png' });
+
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title });
+          return;
+        }
+      } catch {
+        // fall through to URL share
+      }
+    }
+
+    // Fallback: share the public URL
+    const publicUrl = `${window.location.origin}/receipt/${id}/${playerId}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title, text, url: publicUrl });
+        await navigator.share({ title, url: publicUrl });
       } catch {
         // user cancelled
       }

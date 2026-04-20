@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useEffect } from 'react';
 import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 
@@ -43,6 +43,13 @@ export default function PublicReceiptPage({
     );
 
   const total = playerOrders.reduce((s, o) => s + o.price, 0);
+
+  useEffect(() => {
+    if (player && session) {
+      const date = new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      document.title = `${player.name} Receipt — ${date}`;
+    }
+  }, [player, session]);
 
   const venmoNote = encodeURIComponent(`${session?.name ?? ''}`);
   const venmoRecipient = process.env.NEXT_PUBLIC_VENMO_HANDLE?.replace(
