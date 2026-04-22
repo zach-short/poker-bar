@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use } from 'react';
 import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 
@@ -26,11 +26,11 @@ export default function PublicReceiptPage({
 }) {
   const { sessionId, playerId } = use(params);
 
-  const [portalUrl, setPortalUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const t = localStorage.getItem(`portal_${playerId}`);
-    if (t) setPortalUrl(`/portal/${playerId}/${t}`);
-  }, [playerId]);
+  const { data: portalData } = useSWR<{ token: string }>(
+    `/api/players/${playerId}/portal-token`,
+    fetcher,
+  );
+  const portalUrl = portalData ? `/portal/${playerId}/${portalData.token}` : null;
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
   const session = sessions.find((s) => s.id === sessionId);
 

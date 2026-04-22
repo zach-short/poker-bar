@@ -123,7 +123,7 @@ func main() {
 	}
 	log.Printf("Seeded %d inventory items", len(items))
 
-	// ── Drinks ────────────────────────────────────────────────────────────────
+	// ── Drinks ───────────────────────────────────────────
 
 	type ing struct {
 		name string
@@ -194,7 +194,7 @@ func main() {
 			ings: []ing{{"Vodka (Absolut)", 2}, {"Orange Juice", 4}},
 		},
 		{
-			name: "Beer", price: 1.5, cost: 1.10,
+			name: "Beer", price: 1, cost: 1.10,
 			ings: []ing{{"Beer", 1}},
 		},
 	}
