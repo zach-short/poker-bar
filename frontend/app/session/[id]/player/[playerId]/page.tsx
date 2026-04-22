@@ -54,9 +54,10 @@ export default function PlayerReceiptPage({
 
   function handleShare() {
     const url = `${window.location.origin}/receipt/${id}/${playerId}`;
+    const body = encodeURIComponent(url);
 
     if (player?.phone) {
-      window.location.href = `sms:${player.phone}`;
+      window.location.href = `sms:${player.phone}&body=${body}`;
     } else if (navigator.share) {
       navigator
         .share({ title: `${player?.name} Receipt`, url })
