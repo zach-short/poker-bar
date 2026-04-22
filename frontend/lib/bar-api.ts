@@ -14,8 +14,6 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 export const fetcher = <T>(path: string) => apiFetch<T>(path);
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
 export interface Player {
   id: string;
   name: string;
@@ -67,13 +65,6 @@ export interface Order {
   paid: boolean;
 }
 
-export function markPlayerTabPaid(sessionId: string, playerId: string, paid = true) {
-  return apiFetch<{ paid: boolean }>(`/api/sessions/${sessionId}/players/${playerId}/paid`, {
-    method: 'PATCH',
-    body: JSON.stringify({ paid }),
-  });
-}
-
 export interface BuyIn {
   id: string;
   sessionId: string;
@@ -99,6 +90,40 @@ export interface Payment {
   timestamp: string;
 }
 
+export interface CreateOrderResponse {
+  order: Order;
+  lowStockWarnings: string[];
+}
+
+export function formatDate(date: string) {
+  return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+export function formatTime(ts: string) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+export function canMake(drink: DrinkRecipe, inventory: InventoryItem[]): boolean {
+  const stock = new Map(inventory.map((i) => [i.id, i.qtyOnHand]));
+  return drink.ingredients.every((ing) => (stock.get(ing.itemId) ?? 0) >= ing.qtyUsed);
+}
+
+export function openVenmo(handle: string, amount: number) {
+  const h = handle.replace(/^@/, '');
+  const note = encodeURIComponent('Poker Bar');
+  const deepLink = `venmo://paycharge?txn=pay&recipients=${h}&amount=${amount.toFixed(2)}&note=${note}`;
+  const webUrl = `https://account.venmo.com/pay?recipients=${h}&amount=${amount.toFixed(2)}&note=${note}`;
+  window.location.href = deepLink;
+  setTimeout(() => { if (!document.hidden) window.location.href = webUrl; }, 1500);
+}
+
+export function markPlayerTabPaid(sessionId: string, playerId: string, paid = true) {
+  return apiFetch<{ paid: boolean }>(`/api/sessions/${sessionId}/players/${playerId}/paid`, {
+    method: 'PATCH',
+    body: JSON.stringify({ paid }),
+  });
+}
+
 export function computeBalance(
   playerId: string,
   orders: Order[],
@@ -106,16 +131,10 @@ export function computeBalance(
   cashouts: Cashout[],
   payments: Payment[],
 ): number {
-  const drinks   = orders   .filter(o => o.playerId === playerId).reduce((s, o) => s + o.price,  0);
-  const buys     = buyIns   .filter(b => b.playerId === playerId).reduce((s, b) => s + b.amount, 0);
-  const outs     = cashouts .filter(c => c.playerId === playerId).reduce((s, c) => s + c.amount, 0);
-  const received = payments .filter(p => p.playerId === playerId && p.direction === 'received').reduce((s, p) => s + p.amount, 0);
-  const sent     = payments .filter(p => p.playerId === playerId && p.direction === 'sent').reduce((s, p) => s + p.amount, 0);
-  // positive = they owe you, negative = you owe them
+  const drinks   = orders.filter(o => o.playerId === playerId).reduce((s, o) => s + o.price, 0);
+  const buys     = buyIns.filter(b => b.playerId === playerId).reduce((s, b) => s + b.amount, 0);
+  const outs     = cashouts.filter(c => c.playerId === playerId).reduce((s, c) => s + c.amount, 0);
+  const received = payments.filter(p => p.playerId === playerId && p.direction === 'received').reduce((s, p) => s + p.amount, 0);
+  const sent     = payments.filter(p => p.playerId === playerId && p.direction === 'sent').reduce((s, p) => s + p.amount, 0);
   return drinks + buys - outs - received + sent;
-}
-
-export interface CreateOrderResponse {
-  order: Order;
-  lowStockWarnings: string[];
 }

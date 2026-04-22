@@ -2,12 +2,7 @@
 
 import { use, useEffect } from 'react';
 import useSWR from 'swr';
-import { fetcher, computeBalance, Order, BuyIn, Cashout, Payment, DrinkRecipe, InventoryItem, Player } from '@/lib/bar-api';
-
-function canMake(drink: DrinkRecipe, inventory: InventoryItem[]): boolean {
-  const stock = new Map(inventory.map((i) => [i.id, i.qtyOnHand]));
-  return drink.ingredients.every((ing) => (stock.get(ing.itemId) ?? 0) >= ing.qtyUsed);
-}
+import { fetcher, computeBalance, canMake, openVenmo, Order, BuyIn, Cashout, Payment, DrinkRecipe, InventoryItem, Player } from '@/lib/bar-api';
 
 export default function PortalPage({
   params,
@@ -107,7 +102,6 @@ export default function PortalPage({
           <h1 className='text-xl font-semibold tracking-widest uppercase text-primary'>{player.name}</h1>
         </div>
 
-        {/* Balance */}
         <div className='mx-6 border border-border rounded-md p-6 mb-8 text-center'>
           <p className='text-xs tracking-widest uppercase text-muted-foreground mb-3'>Your Balance</p>
           {Math.abs(balance) < 0.01 ? (
@@ -118,14 +112,7 @@ export default function PortalPage({
               <p className='text-xs text-muted-foreground mt-2 tracking-wide'>outstanding</p>
               {player.venmo && (
                 <button
-                  onClick={() => {
-                    const handle = player.venmo!.replace(/^@/, '');
-                    const note = encodeURIComponent('Poker Bar');
-                    const deepLink = `venmo://paycharge?txn=pay&recipients=${handle}&amount=${balance.toFixed(2)}&note=${note}`;
-                    const webUrl = `https://account.venmo.com/pay?recipients=${handle}&amount=${balance.toFixed(2)}&note=${note}`;
-                    window.location.href = deepLink;
-                    setTimeout(() => { if (!document.hidden) window.location.href = webUrl; }, 1500);
-                  }}
+                  onClick={() => openVenmo(player.venmo!, balance)}
                   className='mt-4 w-full flex items-center justify-center gap-2 py-3 rounded text-sm font-bold text-white'
                   style={{ background: '#3D95CE' }}
                 >
@@ -144,7 +131,6 @@ export default function PortalPage({
           )}
         </div>
 
-        {/* Menu — same style as /menu */}
         {available.length > 0 && (
           <div className='portal-menu-root mx-6 rounded-md'>
             <p className='portal-menu-title'>Tonight&apos;s Menu</p>

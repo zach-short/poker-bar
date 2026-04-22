@@ -33,7 +33,6 @@ export default function SummaryPage({
   const totalCogs = orders.reduce((s, o) => s + o.costEstimate, 0);
   const totalProfit = totalRevenue - totalCogs;
 
-  // Step-through text flow
   const [textIndex, setTextIndex] = useState<number | null>(null);
   const isDone = textIndex !== null && textIndex >= playersWithPhone.length;
   const current =
@@ -65,7 +64,6 @@ export default function SummaryPage({
         </p>
       </div>
 
-      {/* Totals */}
       <div className='border border-border rounded-md p-5 mb-8'>
         <p className='text-xs tracking-widest uppercase text-muted-foreground mb-4'>
           Totals
@@ -92,7 +90,6 @@ export default function SummaryPage({
         </div>
       </div>
 
-      {/* Text receipts step-through */}
       {playersWithPhone.length > 0 && (
         <div className='mb-8'>
           {textIndex === null && (

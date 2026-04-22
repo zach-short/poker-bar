@@ -8,6 +8,9 @@ import {
   fetcher,
   apiFetch,
   computeBalance,
+  openVenmo,
+  formatDate,
+  formatTime,
   Player,
   Session,
   Order,
@@ -17,21 +20,6 @@ import {
 } from '@/lib/bar-api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 function BalanceLabel({ amount }: { amount: number }) {
   if (Math.abs(amount) < 0.01)
@@ -112,15 +100,7 @@ export default function PlayerDetailPage({
 
   function handlePayVenmo() {
     if (!player?.venmo || balance >= 0) return;
-    const handle = player.venmo.replace(/^@/, '');
-    const amount = Math.abs(balance).toFixed(2);
-    const note = encodeURIComponent('Poker Bar');
-    const deepLink = `venmo://paycharge?txn=pay&recipients=${handle}&amount=${amount}&note=${note}`;
-    const webUrl = `https://account.venmo.com/pay?recipients=${handle}&amount=${amount}&note=${note}`;
-    window.location.href = deepLink;
-    setTimeout(() => {
-      if (!document.hidden) window.location.href = webUrl;
-    }, 1500);
+    openVenmo(player.venmo, Math.abs(balance));
   }
 
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
@@ -134,7 +114,6 @@ export default function PlayerDetailPage({
 
   const balance = computeBalance(id, orders, buyIns, cashouts, payments);
 
-  // Payment form state
   const [paymentMode, setPaymentMode] = useState<'received' | 'sent' | null>(
     null,
   );
@@ -170,7 +149,6 @@ export default function PlayerDetailPage({
     }
   }
 
-  // Group orders by session, newest first
   const sessionGroups = sessions
     .filter((s) =>
       orders.some((o) => o.sessionId === s.id && o.playerId === id),
@@ -197,7 +175,6 @@ export default function PlayerDetailPage({
         session,
         sessionOrders,
         sessionBuyIns,
-        sessionCashout,
         drinkTotal,
         buyInTotal,
         cashoutAmount,
@@ -304,7 +281,6 @@ export default function PlayerDetailPage({
         </div>
       )}
 
-      {/* Running balance */}
       <div className='border border-border rounded-md p-6 mb-8 flex flex-col items-center gap-2'>
         <p className='text-xs tracking-widest uppercase text-muted-foreground mb-2'>
           Running Balance
@@ -312,7 +288,6 @@ export default function PlayerDetailPage({
         <BalanceLabel amount={balance} />
       </div>
 
-      {/* Record payment buttons */}
       {paymentMode === null ? (
         <div className='flex gap-3 mb-8'>
           <button
@@ -391,7 +366,6 @@ export default function PlayerDetailPage({
         </div>
       )}
 
-      {/* Session breakdown */}
       {sessionGroups.length > 0 && (
         <div className='space-y-4 mb-8'>
           <p className='text-xs tracking-widest uppercase text-muted-foreground'>
@@ -402,7 +376,6 @@ export default function PlayerDetailPage({
               session,
               sessionOrders,
               sessionBuyIns,
-              sessionCashout,
               drinkTotal,
               buyInTotal,
               cashoutAmount,
@@ -477,7 +450,6 @@ export default function PlayerDetailPage({
         </div>
       )}
 
-      {/* Payment history */}
       {paymentHistory.length > 0 && (
         <div className='space-y-2'>
           <p className='text-xs tracking-widest uppercase text-muted-foreground'>

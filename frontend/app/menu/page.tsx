@@ -1,12 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { fetcher, DrinkRecipe, InventoryItem } from '@/lib/bar-api';
-
-function canMake(drink: DrinkRecipe, inventory: InventoryItem[]): boolean {
-  const stock = new Map(inventory.map((i) => [i.id, i.qtyOnHand]));
-  return drink.ingredients.every((ing) => (stock.get(ing.itemId) ?? 0) >= ing.qtyUsed);
-}
+import { fetcher, canMake, DrinkRecipe, InventoryItem } from '@/lib/bar-api';
 
 export default function MenuPage() {
   const { data: drinks = [] } = useSWR<DrinkRecipe[]>('/api/drinks', fetcher);

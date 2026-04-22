@@ -48,12 +48,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [showPicker, setShowPicker] = useState(false);
   const [elapsed, setElapsed] = useState('0m');
 
-  // Re-buy state
   const [rebuyPlayerId, setRebuyPlayerId] = useState<string | null>(null);
   const [rebuyAmount, setRebuyAmount] = useState('');
   const [rebuying, setRebuying] = useState(false);
 
-  // Cashout step state
   const [showCashout, setShowCashout] = useState(false);
   const [cashoutAmounts, setCashoutAmounts] = useState<Record<string, string>>({});
   const [closingSession, setClosingSession] = useState(false);
@@ -197,7 +195,6 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     return <div className='min-h-screen flex items-center justify-center text-muted-foreground text-sm tracking-widest'>Loading…</div>;
   }
 
-  // ── Cashout step ─────────────────────────────────────────────────────────────
   if (showCashout) {
     return (
       <main className='min-h-screen flex flex-col max-w-lg mx-auto px-6 py-10'>
@@ -258,7 +255,6 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  // ── Main session view ─────────────────────────────────────────────────────────
   return (
     <main className='min-h-screen flex flex-col max-w-lg mx-auto'>
       {/* Top bar */}

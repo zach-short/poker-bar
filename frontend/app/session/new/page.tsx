@@ -110,7 +110,6 @@ export default function NewSessionPage() {
       </div>
 
       <div className='space-y-6'>
-        {/* Session name */}
         <div>
           <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>Session name</label>
           <Input
@@ -121,7 +120,6 @@ export default function NewSessionPage() {
           />
         </div>
 
-        {/* Default buy-in */}
         <div>
           <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>Default buy-in</label>
           <div className='relative'>
@@ -139,7 +137,6 @@ export default function NewSessionPage() {
           <p className='text-xs text-muted-foreground mt-1'>Pre-fills for new additions — edit per player below</p>
         </div>
 
-        {/* Selected players with per-player buy-in */}
         {selected.length > 0 && (
           <div>
             <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>
@@ -172,7 +169,6 @@ export default function NewSessionPage() {
           </div>
         )}
 
-        {/* Search / add existing players */}
         <div>
           <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>
             {selected.length > 0 ? 'Add more players' : 'Players'}
@@ -198,7 +194,6 @@ export default function NewSessionPage() {
           )}
         </div>
 
-        {/* Create new player */}
         <div>
           <label className='text-xs tracking-widest uppercase text-muted-foreground mb-2 block'>New player</label>
           <div className='flex gap-2'>

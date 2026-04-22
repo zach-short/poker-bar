@@ -3,23 +3,8 @@
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { fetcher, Session, Player, Order } from '@/lib/bar-api';
+import { fetcher, formatDate, formatTime, Session, Player, Order } from '@/lib/bar-api';
 import { Printer, Share2, MessageCircle } from 'lucide-react';
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 export default function PlayerReceiptPage({
   params,

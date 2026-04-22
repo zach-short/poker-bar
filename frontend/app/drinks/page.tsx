@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { fetcher, apiFetch, DrinkRecipe, InventoryItem } from '@/lib/bar-api';
+import { fetcher, apiFetch, canMake, DrinkRecipe, InventoryItem } from '@/lib/bar-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronDown, ChevronUp, Trash2, Check, Plus } from 'lucide-react';
@@ -138,10 +138,6 @@ function drinkToForm(drink: DrinkRecipe): DrinkForm {
   };
 }
 
-function canMakeDrink(drink: DrinkRecipe, inventory: InventoryItem[]): boolean {
-  const stockMap = new Map(inventory.map((item) => [item.id, item.qtyOnHand]));
-  return drink.ingredients.every((ing) => (stockMap.get(ing.itemId) ?? 0) >= ing.qtyUsed);
-}
 
 export default function DrinksPage() {
   const router = useRouter();
@@ -152,11 +148,9 @@ export default function DrinksPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
 
-  const invMap = new Map(inventory.map((item) => [item.id, item]));
-
   function drinkCost(drink: DrinkRecipe): number {
     return drink.ingredients.reduce((sum, ing) => {
-      const item = invMap.get(ing.itemId);
+      const item = inventory.find((i) => i.id === ing.itemId);
       return sum + ing.qtyUsed * (item?.costPerUnit ?? 0);
     }, 0);
   }
@@ -223,7 +217,7 @@ export default function DrinksPage() {
       <div className='space-y-2'>
         {drinks.filter((d) => d.name.toLowerCase().includes(search.toLowerCase())).map((drink) => {
           const open = expandedId === drink.id;
-          const available = canMakeDrink(drink, inventory);
+          const available = canMake(drink, inventory);
           const cost = drinkCost(drink);
           return (
             <div key={drink.id} className={`border border-border rounded-md${available ? '' : ' opacity-40'}`}>

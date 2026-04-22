@@ -2,11 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { fetcher, Session, Player } from '@/lib/bar-api';
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+import { fetcher, formatDate, Session, Player } from '@/lib/bar-api';
 
 export default function SessionsPage() {
   const router = useRouter();
@@ -17,12 +13,8 @@ export default function SessionsPage() {
 
   const sorted = [...sessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  function handleClick(session: Session) {
-    if (session.status === 'active') {
-      router.push(`/session/${session.id}`);
-    } else {
-      router.push(`/session/${session.id}/summary`);
-    }
+  function handleClick(s: Session) {
+    router.push(s.status === 'active' ? `/session/${s.id}` : `/session/${s.id}/summary`);
   }
 
   return (

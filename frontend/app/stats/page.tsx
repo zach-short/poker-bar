@@ -98,7 +98,6 @@ export default function StatsPage() {
         <button onClick={() => router.back()} className='text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors'>Back</button>
       </div>
 
-      {/* Summary cards */}
       <div className='grid grid-cols-2 gap-3 mb-10 sm:grid-cols-4'>
         {[
           { label: 'Revenue', value: fmt(totalRevenue), color: 'text-foreground' },
@@ -113,7 +112,6 @@ export default function StatsPage() {
         ))}
       </div>
 
-      {/* Cumulative profit — stock chart */}
       <div className='border border-border rounded-md p-5 mb-6'>
         <p className='text-xs tracking-widest uppercase text-muted-foreground mb-6'>Cumulative Profit</p>
         <ResponsiveContainer width='100%' height={220}>
@@ -155,7 +153,6 @@ export default function StatsPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Per-session revenue vs cost */}
       <div className='border border-border rounded-md p-5'>
         <p className='text-xs tracking-widest uppercase text-muted-foreground mb-6'>Revenue vs Cost per Night</p>
         <ResponsiveContainer width='100%' height={200}>
