@@ -19,6 +19,7 @@ export const fetcher = <T>(path: string) => apiFetch<T>(path);
 export interface Player {
   id: string;
   name: string;
+  phone?: string;
   createdAt: string;
 }
 

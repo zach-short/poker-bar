@@ -9,6 +9,7 @@ import (
 type Player struct {
 	ID        primitive.ObjectID `bson:"_id" json:"id"`
 	Name      string             `bson:"name" json:"name"`
+	Phone     string             `bson:"phone,omitempty" json:"phone,omitempty"`
 	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
 }
 

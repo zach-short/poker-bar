@@ -4,7 +4,7 @@ import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
-import { Printer, Share2 } from 'lucide-react';
+import { Printer, Share2, MessageCircle } from 'lucide-react';
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -39,13 +39,16 @@ export default function PlayerReceiptPage({
     window.print();
   }
 
-  async function handleShare() {
-    const title = `${player?.name ?? 'Receipt'} — ${formatDate(session?.date ?? '')}`;
+  function handleShare() {
     const url = `${window.location.origin}/receipt/${id}/${playerId}`;
-    if (navigator.share) {
-      try { await navigator.share({ title, url }); } catch { /* cancelled */ }
+    const body = encodeURIComponent(`Here's your bar tab 🍸\n${url}`);
+
+    if (player?.phone) {
+      window.location.href = `sms:${player.phone}&body=${body}`;
+    } else if (navigator.share) {
+      navigator.share({ title: `${player?.name} Receipt`, url }).catch(() => {});
     } else {
-      await navigator.clipboard.writeText(url);
+      navigator.clipboard.writeText(url);
       alert('Link copied to clipboard');
     }
   }
@@ -261,8 +264,8 @@ export default function PlayerReceiptPage({
 
       <div className='action-bar'>
         <button className='action-btn action-btn-outline' onClick={handleShare}>
-          <Share2 size={14} />
-          Share
+          {player.phone ? <MessageCircle size={14} /> : <Share2 size={14} />}
+          {player.phone ? 'Text' : 'Share'}
         </button>
         <button className='action-btn action-btn-primary' onClick={handlePrint}>
           <Printer size={14} />

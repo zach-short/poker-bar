@@ -36,8 +36,37 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const router = useRouter();
 
-  const { data: players = [] } = useSWR<Player[]>('/api/players', fetcher);
+  const { data: players = [], mutate: mutatePlayers } = useSWR<Player[]>('/api/players', fetcher);
   const player = players.find((p) => p.id === id);
+
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function openEdit() {
+    setEditName(player?.name ?? '');
+    setEditPhone(player?.phone ?? '');
+    setEditing(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!editName.trim()) return;
+    setSavingEdit(true);
+    try {
+      await apiFetch(`/api/players/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: editName.trim(), phone: editPhone.trim() }),
+      });
+      mutatePlayers();
+      setEditing(false);
+      toast.success('Saved');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
   const { data: orders = [] } = useSWR<Order[]>('/api/orders', fetcher);
@@ -111,14 +140,49 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
       <div className='flex items-center justify-between mb-10'>
         <div>
           <h1 className='text-base font-semibold tracking-widest uppercase text-primary'>{player.name}</h1>
+          {player.phone && (
+            <p className='text-xs text-muted-foreground mt-0.5'>{player.phone}</p>
+          )}
         </div>
-        <button
-          onClick={() => router.back()}
-          className='text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors'
-        >
-          Back
-        </button>
+        <div className='flex items-center gap-4'>
+          <button
+            onClick={openEdit}
+            className='text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors'
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => router.back()}
+            className='text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors'
+          >
+            Back
+          </button>
+        </div>
       </div>
+
+      {editing && (
+        <div className='border border-border rounded-md p-4 mb-8 space-y-3'>
+          <p className='text-xs tracking-widest uppercase text-muted-foreground'>Edit Player</p>
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className='h-11'
+            placeholder='Name'
+            autoFocus
+          />
+          <Input
+            value={editPhone}
+            onChange={(e) => setEditPhone(e.target.value)}
+            className='h-11'
+            placeholder='Phone (e.g. +15551234567)'
+            type='tel'
+          />
+          <div className='flex gap-2'>
+            <Button variant='outline' className='flex-1 h-10 text-xs tracking-widest uppercase' onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</Button>
+            <Button className='flex-1 h-10 text-xs tracking-widest uppercase' onClick={handleSaveEdit} disabled={savingEdit || !editName.trim()}>{savingEdit ? 'Saving…' : 'Save'}</Button>
+          </div>
+        </div>
+      )}
 
       {/* Running balance */}
       <div className='border border-border rounded-md p-6 mb-8 flex flex-col items-center gap-2'>

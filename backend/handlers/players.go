@@ -71,3 +71,39 @@ func CreatePlayer(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, player)
 }
+
+func UpdatePlayer(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid player ID"})
+		return
+	}
+
+	var req struct {
+		Name  string `json:"name"`
+		Phone string `json:"phone"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	update := bson.M{}
+	if req.Name != "" {
+		update["name"] = req.Name
+	}
+	update["phone"] = req.Phone
+
+	collection := config.GetCollection("players")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var updated models.Player
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	if err := collection.FindOneAndUpdate(ctx, bson.M{"_id": id}, bson.M{"$set": update}, opts).Decode(&updated); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Player not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, updated)
+}

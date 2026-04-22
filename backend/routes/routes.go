@@ -25,6 +25,7 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		bar.GET("/players", handlers.GetPlayers)
 		bar.POST("/players", handlers.CreatePlayer)
+		bar.PATCH("/players/:id", handlers.UpdatePlayer)
 
 		bar.GET("/inventory", handlers.GetInventory)
 		bar.POST("/inventory", handlers.CreateInventoryItem)
