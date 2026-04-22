@@ -159,6 +159,17 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
         </div>
         <div className='flex items-center gap-4'>
           <button
+            onClick={async () => {
+              const { token } = await apiFetch<{ token: string }>(`/api/players/${id}/portal-token`);
+              const url = `${window.location.origin}/portal/${id}/${token}`;
+              await navigator.clipboard.writeText(url);
+              toast.success('Portal link copied');
+            }}
+            className='text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors'
+          >
+            Portal
+          </button>
+          <button
             onClick={openEdit}
             className='text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors'
           >

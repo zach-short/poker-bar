@@ -40,7 +40,9 @@ func GetPlayers(c *gin.Context) {
 
 func CreatePlayer(c *gin.Context) {
 	var req struct {
-		Name string `json:"name" binding:"required"`
+		Name  string `json:"name" binding:"required"`
+		Phone string `json:"phone"`
+		Venmo string `json:"venmo"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -61,6 +63,8 @@ func CreatePlayer(c *gin.Context) {
 	player := models.Player{
 		ID:        primitive.NewObjectID(),
 		Name:      req.Name,
+		Phone:     req.Phone,
+		Venmo:     req.Venmo,
 		CreatedAt: time.Now(),
 	}
 

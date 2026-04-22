@@ -9,7 +9,8 @@ export default auth((req) => {
     pathname === '/' ||
     pathname === '/login' ||
     pathname.startsWith('/menu') ||
-    pathname.startsWith('/receipt');
+    pathname.startsWith('/receipt') ||
+    pathname.startsWith('/portal');
 
   if (!isPublic && !isLoggedIn) {
     return NextResponse.redirect(new URL('/login', req.url));

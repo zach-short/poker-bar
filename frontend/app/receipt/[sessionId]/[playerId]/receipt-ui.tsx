@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 
@@ -25,6 +25,12 @@ export default function PublicReceiptPage({
   params: Promise<{ sessionId: string; playerId: string }>;
 }) {
   const { sessionId, playerId } = use(params);
+
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const t = localStorage.getItem(`portal_${playerId}`);
+    if (t) setPortalUrl(`/portal/${playerId}/${t}`);
+  }, [playerId]);
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
   const session = sessions.find((s) => s.id === sessionId);
 
@@ -273,6 +279,22 @@ export default function PublicReceiptPage({
             Pay on Venmo
             <span className='venmo-amount'>${total.toFixed(2)}</span>
           </button>
+        )}
+
+        {portalUrl && (
+          <a
+            href={portalUrl}
+            style={{
+              fontSize: '0.65rem',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: 'var(--muted-foreground)',
+              textDecoration: 'none',
+              marginTop: '0.5rem',
+            }}
+          >
+            ← My Account
+          </a>
         )}
       </div>
     </>
