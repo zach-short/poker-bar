@@ -1,17 +1,10 @@
 'use client';
 
-import { use, useRef, useEffect } from 'react';
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 import { Printer, Share2 } from 'lucide-react';
-
-const GOLD = '#c9a84c';
-const DIM  = '#6b6560';
-const FG   = '#ede8de';
-const BG   = '#0d0d0d';
-const LINE = '#2a2a2a';
-const FONT = '"Courier New", monospace';
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -19,121 +12,6 @@ function formatDate(date: string) {
 
 function formatTime(ts: string) {
   return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-
-function drawReceiptCanvas(
-  player: Player,
-  session: Session,
-  orders: Order[],
-  total: number,
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const W = 720;
-    const PAD = 56;
-    const ROW = 42;
-    const headerH = 210;
-    const footerH = 100;
-    const H = headerH + orders.length * ROW + footerH + (orders.length > 0 ? 80 : 40);
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = W * 2;   // 2× for retina
-    canvas.height = H * 2;
-    const ctx = canvas.getContext('2d')!;
-    ctx.scale(2, 2);
-
-    // background
-    ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, W, H);
-
-    let y = 52;
-
-    // venue
-    ctx.fillStyle = DIM;
-    ctx.font = `600 13px ${FONT}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('P O K E R   B A R', W / 2, y);
-    y += 36;
-
-    // player name
-    ctx.fillStyle = GOLD;
-    ctx.font = `bold 32px ${FONT}`;
-    ctx.fillText(player.name.toUpperCase(), W / 2, y);
-    y += 32;
-
-    // date + session
-    ctx.fillStyle = DIM;
-    ctx.font = `14px ${FONT}`;
-    ctx.fillText(`${formatDate(session.date)}  ·  ${session.name}`, W / 2, y);
-    y += 36;
-
-    // dashed rule
-    const drawRule = (yPos: number) => {
-      ctx.strokeStyle = LINE;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([5, 4]);
-      ctx.beginPath();
-      ctx.moveTo(PAD, yPos);
-      ctx.lineTo(W - PAD, yPos);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    };
-
-    drawRule(y);
-    y += 28;
-
-    // orders
-    ctx.textAlign = 'left';
-    for (const order of orders) {
-      ctx.fillStyle = DIM;
-      ctx.font = `13px ${FONT}`;
-      ctx.fillText(formatTime(order.timestamp), PAD, y);
-
-      ctx.fillStyle = FG;
-      ctx.font = `15px ${FONT}`;
-      ctx.fillText(order.drinkName, PAD + 90, y);
-
-      ctx.fillStyle = FG;
-      ctx.font = `bold 15px ${FONT}`;
-      ctx.textAlign = 'right';
-      ctx.fillText(`$${order.price.toFixed(2)}`, W - PAD, y);
-      ctx.textAlign = 'left';
-
-      y += ROW;
-    }
-
-    if (orders.length === 0) {
-      ctx.fillStyle = DIM;
-      ctx.font = `14px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.fillText('No orders', W / 2, y);
-      ctx.textAlign = 'left';
-      y += ROW;
-    }
-
-    y += 10;
-    drawRule(y);
-    y += 34;
-
-    // total
-    ctx.fillStyle = GOLD;
-    ctx.font = `bold 20px ${FONT}`;
-    ctx.textAlign = 'left';
-    ctx.fillText('TOTAL', PAD, y);
-    ctx.textAlign = 'right';
-    ctx.fillText(`$${total.toFixed(2)}`, W - PAD, y);
-    y += 48;
-
-    // footer
-    ctx.fillStyle = DIM;
-    ctx.font = `12px ${FONT}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('T H A N K   Y O U  ·  G O O D   G A M E', W / 2, y);
-
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))),
-      'image/png',
-    );
-  });
 }
 
 export default function PlayerReceiptPage({
@@ -157,46 +35,17 @@ export default function PlayerReceiptPage({
 
   const total = playerOrders.reduce((s, o) => s + o.price, 0);
 
-  // Pre-render receipt image in the background so share is instant
-  const imageBlobRef = useRef<Blob | null>(null);
-  useEffect(() => {
-    if (!player || !session) return;
-    drawReceiptCanvas(player, session, playerOrders, total)
-      .then((blob) => { imageBlobRef.current = blob; })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player?.id, session?.id, orders.length]);
-
   function handlePrint() {
     window.print();
   }
 
   async function handleShare() {
     const title = `${player?.name ?? 'Receipt'} — ${formatDate(session?.date ?? '')}`;
-
-    // Share pre-rendered image (no async work here — gesture chain intact)
-    if (imageBlobRef.current && navigator.canShare) {
-      const file = new File(
-        [imageBlobRef.current],
-        `receipt-${player?.name ?? 'tab'}.png`,
-        { type: 'image/png' },
-      );
-      if (navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title });
-          return;
-        } catch {
-          // cancelled or denied — fall through
-        }
-      }
-    }
-
-    // Fallback: share the public URL
-    const publicUrl = `${window.location.origin}/receipt/${id}/${playerId}`;
+    const url = `${window.location.origin}/receipt/${id}/${playerId}`;
     if (navigator.share) {
-      try { await navigator.share({ title, url: publicUrl }); } catch { /* cancelled */ }
+      try { await navigator.share({ title, url }); } catch { /* cancelled */ }
     } else {
-      await navigator.clipboard.writeText(publicUrl);
+      await navigator.clipboard.writeText(url);
       alert('Link copied to clipboard');
     }
   }

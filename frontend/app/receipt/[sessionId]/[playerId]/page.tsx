@@ -41,7 +41,14 @@ export async function generateMetadata({
     year: 'numeric',
   });
 
-  return { title: { absolute: `${player.name} Receipt — ${date}` } };
+  const title = `${player.name} Receipt — ${date}`;
+  return {
+    title: { absolute: title },
+    openGraph: {
+      title,
+      description: `View ${player.name}'s bar tab from ${date}`,
+    },
+  };
 }
 
 export default function PublicReceiptPage({
