@@ -1,10 +1,9 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
 export const size = { width: 600, height: 420 };
 export const contentType = 'image/png';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? 'http://localhost:8080';
 
 export default async function OgImage({
   params,
