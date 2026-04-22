@@ -8,52 +8,74 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 
-export default function SummaryPage({ params }: { params: Promise<{ id: string }> }) {
+export default function SummaryPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
   const router = useRouter();
 
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
   const session = sessions.find((s) => s.id === id);
   const { data: players = [] } = useSWR<Player[]>('/api/players', fetcher);
-  const { data: orders = [] } = useSWR<Order[]>(`/api/orders?sessionId=${id}`, fetcher);
+  const { data: orders = [] } = useSWR<Order[]>(
+    `/api/orders?sessionId=${id}`,
+    fetcher,
+  );
 
-  const sessionPlayers = players.filter((p) => session?.playerIds?.includes(p.id));
+  const sessionPlayers = players.filter((p) =>
+    session?.playerIds?.includes(p.id),
+  );
   const playersWithPhone = sessionPlayers.filter((p) => p.phone);
 
   const totalRevenue = orders.reduce((s, o) => s + o.price, 0);
-  const totalCogs    = orders.reduce((s, o) => s + o.costEstimate, 0);
-  const totalProfit  = totalRevenue - totalCogs;
+  const totalCogs = orders.reduce((s, o) => s + o.costEstimate, 0);
+  const totalProfit = totalRevenue - totalCogs;
 
   // Step-through text flow
   const [textIndex, setTextIndex] = useState<number | null>(null);
   const isDone = textIndex !== null && textIndex >= playersWithPhone.length;
-  const current = textIndex !== null && !isDone ? playersWithPhone[textIndex] : null;
+  const current =
+    textIndex !== null && !isDone ? playersWithPhone[textIndex] : null;
 
-  function startTexting() { setTextIndex(0); }
+  function startTexting() {
+    setTextIndex(0);
+  }
 
   function openText(player: Player) {
     const url = `${window.location.origin}/receipt/${id}/${player.id}`;
-    const body = encodeURIComponent(`Here's your bar tab 🍸\n${url}`);
+    const body = encodeURIComponent(`${url}`);
     window.location.href = `sms:${player.phone}&body=${body}`;
     setTimeout(() => setTextIndex((i) => (i ?? 0) + 1), 500);
   }
 
-  function skip() { setTextIndex((i) => (i ?? 0) + 1); }
+  function skip() {
+    setTextIndex((i) => (i ?? 0) + 1);
+  }
 
   return (
     <main className='min-h-screen px-6 py-10 max-w-sm mx-auto pb-24'>
       <div className='mb-10'>
-        <h1 className='text-base font-semibold tracking-widest uppercase text-primary mb-1'>Session Complete</h1>
-        <p className='text-xs text-muted-foreground tracking-wide'>{session?.name}</p>
+        <h1 className='text-base font-semibold tracking-widest uppercase text-primary mb-1'>
+          Session Complete
+        </h1>
+        <p className='text-xs text-muted-foreground tracking-wide'>
+          {session?.name}
+        </p>
       </div>
 
       {/* Totals */}
       <div className='border border-border rounded-md p-5 mb-8'>
-        <p className='text-xs tracking-widest uppercase text-muted-foreground mb-4'>Totals</p>
+        <p className='text-xs tracking-widest uppercase text-muted-foreground mb-4'>
+          Totals
+        </p>
         <div className='grid grid-cols-3 gap-4 text-center'>
           <div>
             <p className='text-xs text-muted-foreground mb-1'>Revenue</p>
-            <p className='text-xl font-semibold text-primary'>${totalRevenue.toFixed(2)}</p>
+            <p className='text-xl font-semibold text-primary'>
+              ${totalRevenue.toFixed(2)}
+            </p>
           </div>
           <div>
             <p className='text-xs text-muted-foreground mb-1'>Cost</p>
@@ -61,7 +83,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           </div>
           <div>
             <p className='text-xs text-muted-foreground mb-1'>Profit</p>
-            <p className={`text-xl font-semibold ${totalProfit >= 0 ? 'text-primary' : 'text-destructive'}`}>
+            <p
+              className={`text-xl font-semibold ${totalProfit >= 0 ? 'text-primary' : 'text-destructive'}`}
+            >
               ${totalProfit.toFixed(2)}
             </p>
           </div>
@@ -89,7 +113,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                 </p>
                 <div className='flex gap-1'>
                   {playersWithPhone.map((_, i) => (
-                    <div key={i} className={`h-1 w-4 rounded-full ${i <= textIndex! ? 'bg-primary' : 'bg-border'}`} />
+                    <div
+                      key={i}
+                      className={`h-1 w-4 rounded-full ${i <= textIndex! ? 'bg-primary' : 'bg-border'}`}
+                    />
                   ))}
                 </div>
               </div>
@@ -117,8 +144,13 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
           {isDone && (
             <div className='border border-green-500/30 rounded-md p-4 text-center'>
-              <p className='text-sm text-green-500 font-medium'>All receipts sent</p>
-              <p className='text-xs text-muted-foreground mt-1'>{playersWithPhone.length} message{playersWithPhone.length > 1 ? 's' : ''} opened</p>
+              <p className='text-sm text-green-500 font-medium'>
+                All receipts sent
+              </p>
+              <p className='text-xs text-muted-foreground mt-1'>
+                {playersWithPhone.length} message
+                {playersWithPhone.length > 1 ? 's' : ''} opened
+              </p>
             </div>
           )}
         </div>
@@ -135,7 +167,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               <div className='flex items-center justify-between px-4 py-3 border-b border-border'>
                 <span className='text-sm font-medium'>{player.name}</span>
                 <div className='flex items-center gap-3'>
-                  <span className='text-sm font-semibold text-primary'>${subtotal.toFixed(2)}</span>
+                  <span className='text-sm font-semibold text-primary'>
+                    ${subtotal.toFixed(2)}
+                  </span>
                   <Link
                     href={`/session/${id}/player/${player.id}`}
                     className='text-[10px] tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors border border-border hover:border-primary/50 rounded px-2 py-1'
@@ -146,9 +180,16 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               </div>
               <div className='px-4 py-2 space-y-1.5'>
                 {playerOrders.map((order) => (
-                  <div key={order.id} className='flex justify-between text-sm py-0.5'>
-                    <span className='text-muted-foreground'>{order.drinkName}</span>
-                    <span className='tabular-nums'>${order.price.toFixed(2)}</span>
+                  <div
+                    key={order.id}
+                    className='flex justify-between text-sm py-0.5'
+                  >
+                    <span className='text-muted-foreground'>
+                      {order.drinkName}
+                    </span>
+                    <span className='tabular-nums'>
+                      ${order.price.toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>
