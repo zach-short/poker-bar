@@ -7,11 +7,18 @@ import { fetcher, Session, Player, Order } from '@/lib/bar-api';
 import { Printer, Share2, MessageCircle } from 'lucide-react';
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return new Date(ts).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 export default function PlayerReceiptPage({
@@ -28,10 +35,16 @@ export default function PlayerReceiptPage({
   const { data: players = [] } = useSWR<Player[]>('/api/players', fetcher);
   const player = players.find((p) => p.id === playerId);
 
-  const { data: orders = [] } = useSWR<Order[]>(`/api/orders?sessionId=${id}`, fetcher);
+  const { data: orders = [] } = useSWR<Order[]>(
+    `/api/orders?sessionId=${id}`,
+    fetcher,
+  );
   const playerOrders = orders
     .filter((o) => o.playerId === playerId)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
 
   const total = playerOrders.reduce((s, o) => s + o.price, 0);
 
@@ -41,12 +54,13 @@ export default function PlayerReceiptPage({
 
   function handleShare() {
     const url = `${window.location.origin}/receipt/${id}/${playerId}`;
-    const body = encodeURIComponent(`Here's your bar tab 🍸\n${url}`);
 
     if (player?.phone) {
-      window.location.href = `sms:${player.phone}&body=${body}`;
+      window.location.href = `sms:${player.phone}`;
     } else if (navigator.share) {
-      navigator.share({ title: `${player?.name} Receipt`, url }).catch(() => {});
+      navigator
+        .share({ title: `${player?.name} Receipt`, url })
+        .catch(() => {});
     } else {
       navigator.clipboard.writeText(url);
       alert('Link copied to clipboard');
@@ -238,18 +252,31 @@ export default function PlayerReceiptPage({
         <div className='receipt-card'>
           <p className='receipt-venue'>Poker Bar</p>
           <p className='receipt-title'>{player.name}</p>
-          <p className='receipt-date'>{formatDate(session.date)} · {session.name}</p>
+          <p className='receipt-date'>
+            {formatDate(session.date)} · {session.name}
+          </p>
           <hr className='receipt-divider' />
           {playerOrders.length === 0 ? (
-            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--muted-foreground)', padding: '1rem 0' }}>
+            <p
+              style={{
+                textAlign: 'center',
+                fontSize: '0.75rem',
+                color: 'var(--muted-foreground)',
+                padding: '1rem 0',
+              }}
+            >
               No orders
             </p>
           ) : (
             playerOrders.map((order) => (
               <div key={order.id} className='receipt-row'>
-                <span className='receipt-row-time'>{formatTime(order.timestamp)}</span>
+                <span className='receipt-row-time'>
+                  {formatTime(order.timestamp)}
+                </span>
                 <span className='receipt-row-name'>{order.drinkName}</span>
-                <span className='receipt-row-price'>${order.price.toFixed(2)}</span>
+                <span className='receipt-row-price'>
+                  ${order.price.toFixed(2)}
+                </span>
               </div>
             ))
           )}

@@ -103,7 +103,7 @@ function Dashboard() {
       {lastClosed && (
         <div className='mt-10'>
           <p className='text-xs tracking-widest uppercase text-muted-foreground mb-4'>Last Session</p>
-          <div className='border border-border rounded-md p-4'>
+          <button className='w-full border border-border rounded-md p-4 text-left hover:border-primary/50 transition-colors' onClick={() => router.push(`/session/${lastClosed.id}`)}>
             <p className='text-sm font-medium mb-3'>{lastClosed.name}</p>
             <div className='grid grid-cols-3 gap-2 text-center'>
               <div>
@@ -121,7 +121,7 @@ function Dashboard() {
                 </p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
       )}
     </main>
