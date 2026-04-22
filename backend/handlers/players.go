@@ -82,6 +82,7 @@ func UpdatePlayer(c *gin.Context) {
 	var req struct {
 		Name  string `json:"name"`
 		Phone string `json:"phone"`
+		Venmo string `json:"venmo"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -93,6 +94,7 @@ func UpdatePlayer(c *gin.Context) {
 		update["name"] = req.Name
 	}
 	update["phone"] = req.Phone
+	update["venmo"] = req.Venmo
 
 	collection := config.GetCollection("players")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -10,6 +10,7 @@ type Player struct {
 	ID        primitive.ObjectID `bson:"_id" json:"id"`
 	Name      string             `bson:"name" json:"name"`
 	Phone     string             `bson:"phone,omitempty" json:"phone,omitempty"`
+	Venmo     string             `bson:"venmo,omitempty" json:"venmo,omitempty"`
 	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
 }
 

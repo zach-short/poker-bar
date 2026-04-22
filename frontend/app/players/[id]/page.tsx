@@ -42,11 +42,13 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editVenmo, setEditVenmo] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
   function openEdit() {
     setEditName(player?.name ?? '');
     setEditPhone(player?.phone ?? '');
+    setEditVenmo(player?.venmo ?? '');
     setEditing(true);
   }
 
@@ -56,7 +58,7 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
     try {
       await apiFetch(`/api/players/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ name: editName.trim(), phone: editPhone.trim() }),
+        body: JSON.stringify({ name: editName.trim(), phone: editPhone.trim(), venmo: editVenmo.trim() }),
       });
       mutatePlayers();
       setEditing(false);
@@ -66,6 +68,17 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setSavingEdit(false);
     }
+  }
+
+  function handlePayVenmo() {
+    if (!player?.venmo || balance >= 0) return;
+    const handle = player.venmo.replace(/^@/, '');
+    const amount = Math.abs(balance).toFixed(2);
+    const note = encodeURIComponent('Poker Bar');
+    const deepLink = `venmo://paycharge?txn=pay&recipients=${handle}&amount=${amount}&note=${note}`;
+    const webUrl = `https://account.venmo.com/pay?recipients=${handle}&amount=${amount}&note=${note}`;
+    window.location.href = deepLink;
+    setTimeout(() => { if (!document.hidden) window.location.href = webUrl; }, 1500);
   }
 
   const { data: sessions = [] } = useSWR<Session[]>('/api/sessions', fetcher);
@@ -177,6 +190,12 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
             placeholder='Phone (e.g. +15551234567)'
             type='tel'
           />
+          <Input
+            value={editVenmo}
+            onChange={(e) => setEditVenmo(e.target.value)}
+            className='h-11'
+            placeholder='Venmo handle (e.g. @john-doe)'
+          />
           <div className='flex gap-2'>
             <Button variant='outline' className='flex-1 h-10 text-xs tracking-widest uppercase' onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</Button>
             <Button className='flex-1 h-10 text-xs tracking-widest uppercase' onClick={handleSaveEdit} disabled={savingEdit || !editName.trim()}>{savingEdit ? 'Saving…' : 'Save'}</Button>
@@ -205,6 +224,15 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
           >
             I Paid Them
           </button>
+          {player.venmo && balance < 0 && (
+            <button
+              onClick={handlePayVenmo}
+              className='flex-1 py-3 rounded text-xs tracking-widest uppercase font-semibold text-white transition-opacity hover:opacity-90'
+              style={{ background: '#3D95CE' }}
+            >
+              Pay on Venmo
+            </button>
+          )}
         </div>
       ) : (
         <div className='border border-border rounded-md p-4 mb-8 space-y-3'>

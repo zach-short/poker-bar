@@ -20,6 +20,7 @@ export interface Player {
   id: string;
   name: string;
   phone?: string;
+  venmo?: string;
   createdAt: string;
 }
 
