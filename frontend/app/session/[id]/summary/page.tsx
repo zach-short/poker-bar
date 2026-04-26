@@ -3,10 +3,10 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { fetcher, Session, Player, Order } from '@/lib/bar-api';
+import { fetcher, Session, Player, Order, BuyIn, Cashout } from '@/lib/bar-api';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function SummaryPage({
   params,
@@ -23,6 +23,14 @@ export default function SummaryPage({
     `/api/orders?sessionId=${id}`,
     fetcher,
   );
+  const { data: buyIns = [] } = useSWR<BuyIn[]>(
+    `/api/buyins?sessionId=${id}`,
+    fetcher,
+  );
+  const { data: cashouts = [] } = useSWR<Cashout[]>(
+    `/api/cashouts?sessionId=${id}`,
+    fetcher,
+  );
 
   const sessionPlayers = players.filter((p) =>
     session?.playerIds?.includes(p.id),
@@ -33,6 +41,7 @@ export default function SummaryPage({
   const totalCogs = orders.reduce((s, o) => s + o.costEstimate, 0);
   const totalProfit = totalRevenue - totalCogs;
 
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const [textIndex, setTextIndex] = useState<number | null>(null);
   const isDone = textIndex !== null && textIndex >= playersWithPhone.length;
   const current =
@@ -64,9 +73,88 @@ export default function SummaryPage({
         </p>
       </div>
 
+      {sessionPlayers.length > 0 && (() => {
+        const idx = Math.min(carouselIndex, sessionPlayers.length - 1);
+        const player = sessionPlayers[idx];
+        const playerBuyIns = buyIns.filter((b) => b.playerId === player.id);
+        const playerCashout = cashouts.find((c) => c.playerId === player.id);
+        const buyInTotal = playerBuyIns.reduce((s, b) => s + b.amount, 0);
+        const cashoutAmount = playerCashout?.amount ?? 0;
+        const net = buyInTotal - cashoutAmount;
+
+        return (
+          <div className='border border-border rounded-md mb-6'>
+            <div className='flex items-center justify-between px-4 pt-4 pb-1'>
+              <p className='text-xs tracking-widest uppercase text-muted-foreground'>Players</p>
+              <p className='text-xs text-muted-foreground'>{idx + 1} / {sessionPlayers.length}</p>
+            </div>
+
+            <div className='flex items-center gap-2 px-2 pb-4'>
+              <button
+                onClick={() => setCarouselIndex((i) => Math.max(0, i - 1))}
+                disabled={idx === 0}
+                className='p-2 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors'
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <div className='flex-1 text-center px-2'>
+                <p className='text-sm font-semibold tracking-wide uppercase mb-3'>{player.name}</p>
+                <div className='space-y-1.5 text-sm'>
+                  {playerBuyIns.map((b, i) => (
+                    <div key={b.id} className='flex justify-between text-muted-foreground'>
+                      <span>{i === 0 ? 'Buy-in' : 'Re-buy'}</span>
+                      <span className='tabular-nums'>+${b.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  {buyInTotal === 0 && (
+                    <div className='flex justify-between text-muted-foreground'>
+                      <span>Buy-in</span>
+                      <span className='tabular-nums'>—</span>
+                    </div>
+                  )}
+                  <div className='flex justify-between text-green-500'>
+                    <span>Cash out</span>
+                    <span className='tabular-nums'>
+                      {playerCashout ? `−$${cashoutAmount.toFixed(2)}` : '—'}
+                    </span>
+                  </div>
+                  <div className='flex justify-between font-semibold pt-1.5 border-t border-border'>
+                    <span>{net > 0 ? 'They owe' : net < 0 ? 'You owe' : 'Even'}</span>
+                    <span className={`tabular-nums ${net > 0 ? 'text-destructive' : net < 0 ? 'text-green-500' : 'text-muted-foreground'}`}>
+                      {net === 0 ? '—' : `$${Math.abs(net).toFixed(2)}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setCarouselIndex((i) => Math.min(sessionPlayers.length - 1, i + 1))}
+                disabled={idx === sessionPlayers.length - 1}
+                className='p-2 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors'
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {sessionPlayers.length > 1 && (
+              <div className='flex justify-center gap-1 pb-3'>
+                {sessionPlayers.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCarouselIndex(i)}
+                    className={`h-1 rounded-full transition-all ${i === idx ? 'w-4 bg-primary' : 'w-1.5 bg-border'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div className='border border-border rounded-md p-5 mb-8'>
         <p className='text-xs tracking-widest uppercase text-muted-foreground mb-4'>
-          Totals
+          Bar Totals
         </p>
         <div className='grid grid-cols-3 gap-4 text-center'>
           <div>

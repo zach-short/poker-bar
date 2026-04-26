@@ -30,16 +30,19 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const { id } = use(params);
   const router = useRouter();
 
-  const { data: session } = useSWR<Session>(`/api/sessions?id=${id}`, async () => {
+  const { data: session, mutate: mutateSession } = useSWR<Session>(`/api/sessions?id=${id}`, async () => {
     const sessions = await fetcher<Session[]>('/api/sessions');
     return sessions.find((s) => s.id === id)!;
   });
-  const { data: players = [] } = useSWR<Player[]>('/api/players', fetcher);
+  const { data: players = [], mutate: mutatePlayers } = useSWR<Player[]>('/api/players', fetcher);
   const { data: orders = [], mutate: mutateOrders } = useSWR<Order[]>(
     `/api/orders?sessionId=${id}`, fetcher, { refreshInterval: 15000 }
   );
   const { data: buyIns = [], mutate: mutateBuyIns } = useSWR<BuyIn[]>(
     `/api/buyins?sessionId=${id}`, fetcher
+  );
+  const { data: cashouts = [], mutate: mutateCashouts } = useSWR<Cashout[]>(
+    `/api/cashouts?sessionId=${id}`, fetcher
   );
   const { data: drinks = [] } = useSWR<DrinkRecipe[]>('/api/drinks', fetcher);
   const { data: inventory = [], mutate: mutateInventory } = useSWR<InventoryItem[]>('/api/inventory', fetcher);
@@ -52,9 +55,18 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [rebuyAmount, setRebuyAmount] = useState('');
   const [rebuying, setRebuying] = useState(false);
 
+  const [earlyCashoutPlayerId, setEarlyCashoutPlayerId] = useState<string | null>(null);
+  const [earlyCashoutAmount, setEarlyCashoutAmount] = useState('');
+  const [earlyCashingOut, setEarlyCashingOut] = useState(false);
+
   const [showCashout, setShowCashout] = useState(false);
   const [cashoutAmounts, setCashoutAmounts] = useState<Record<string, string>>({});
   const [closingSession, setClosingSession] = useState(false);
+
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [addPlayerSearch, setAddPlayerSearch] = useState('');
+  const [addPlayerBuyIn, setAddPlayerBuyIn] = useState('20');
+  const [addingPlayer, setAddingPlayer] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -90,6 +102,31 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     [orders]
   );
 
+  const playerCashout = useCallback(
+    (playerId: string) => cashouts.find((c) => c.playerId === playerId),
+    [cashouts]
+  );
+
+  async function handleEarlyCashout(playerId: string) {
+    const amount = parseFloat(earlyCashoutAmount);
+    if (!amount || amount < 0) return;
+    setEarlyCashingOut(true);
+    try {
+      await apiFetch<Cashout>('/api/cashouts', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: id, playerId, amount }),
+      });
+      toast.success(`Cashed out $${amount.toFixed(2)}`);
+      mutateCashouts();
+      setEarlyCashoutPlayerId(null);
+      setEarlyCashoutAmount('');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEarlyCashingOut(false);
+    }
+  }
+
   async function handleMarkPaid(playerId: string) {
     const alreadyPaid = isTabPaid(playerId);
     mutateOrders(orders.map((o) => o.playerId === playerId ? { ...o, paid: !alreadyPaid } : o), false);
@@ -122,13 +159,64 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     }
   }
 
+  async function handleAddPlayer(player: Player) {
+    if (!session) return;
+    setAddingPlayer(true);
+    try {
+      const currentIds = session.playerIds ?? [];
+      if (currentIds.includes(player.id)) {
+        toast.error(`${player.name} is already in this session`);
+        return;
+      }
+      await apiFetch(`/api/sessions/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ playerIds: [...currentIds, player.id] }),
+      });
+      const buyIn = parseFloat(addPlayerBuyIn);
+      if (buyIn > 0) {
+        await apiFetch<BuyIn>('/api/buyins', {
+          method: 'POST',
+          body: JSON.stringify({ sessionId: id, playerId: player.id, amount: buyIn }),
+        });
+        mutateBuyIns();
+      }
+      await mutateSession();
+      setSelectedPlayerId(player.id);
+      setShowAddPlayer(false);
+      setAddPlayerSearch('');
+      setAddPlayerBuyIn('20');
+      toast.success(`${player.name} added`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAddingPlayer(false);
+    }
+  }
+
+  async function handleAddNewPlayer(name: string) {
+    if (!name.trim() || !session) return;
+    setAddingPlayer(true);
+    try {
+      const player = await apiFetch<Player>('/api/players', {
+        method: 'POST',
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      await mutatePlayers();
+      await handleAddPlayer(player);
+    } catch (e) {
+      toast.error((e as Error).message);
+      setAddingPlayer(false);
+    }
+  }
+
   async function handleCloseSession() {
     setClosingSession(true);
     try {
       await Promise.all(
         sessionPlayers.map((p) => {
           const amount = parseFloat(cashoutAmounts[p.id] ?? '0') || 0;
-          if (amount > 0) {
+          const alreadyCashedOut = cashouts.some((c) => c.playerId === p.id);
+          if (amount > 0 && !alreadyCashedOut) {
             return apiFetch<Cashout>('/api/cashouts', {
               method: 'POST',
               body: JSON.stringify({ sessionId: id, playerId: p.id, amount }),
@@ -196,11 +284,33 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   }
 
   if (showCashout) {
+    const totalBuyIns = sessionPlayers.reduce((s, p) => s + buyInTotal(p.id), 0);
+    const totalCashedOut = sessionPlayers.reduce((s, p) => {
+      const v = parseFloat(cashoutAmounts[p.id] ?? '0') || 0;
+      return s + v;
+    }, 0);
+    const remaining = totalBuyIns - totalCashedOut;
+    const isOver = remaining < 0;
+
     return (
       <main className='min-h-screen flex flex-col max-w-lg mx-auto px-6 py-10'>
-        <div className='mb-8'>
+        <div className='mb-6'>
           <h1 className='text-base font-semibold tracking-widest uppercase text-primary mb-1'>Cash Out</h1>
           <p className='text-xs text-muted-foreground'>Enter each player&apos;s chip value to close the session.</p>
+        </div>
+
+        <div className='border border-border rounded-md px-5 py-4 mb-6 flex items-center justify-between'>
+          <div>
+            <p className='text-xs tracking-widest uppercase text-muted-foreground'>Pot remaining</p>
+            <p className={`text-2xl font-bold mt-0.5 tabular-nums ${isOver ? 'text-destructive' : remaining === 0 ? 'text-green-500' : 'text-foreground'}`}>
+              ${Math.abs(remaining).toFixed(2)}
+              {isOver && <span className='text-xs font-normal ml-1 text-destructive'>over</span>}
+            </p>
+          </div>
+          <div className='text-right text-xs text-muted-foreground space-y-0.5'>
+            <p>${totalBuyIns.toFixed(2)} total buy-ins</p>
+            <p>−${totalCashedOut.toFixed(2)} cashed out</p>
+          </div>
         </div>
 
         <div className='space-y-4 flex-1'>
@@ -267,7 +377,12 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           variant='destructive'
           size='sm'
           className='shrink-0 h-9 text-xs tracking-widest uppercase'
-          onClick={() => setShowCashout(true)}
+          onClick={() => {
+            const prefill: Record<string, string> = {};
+            cashouts.forEach((c) => { prefill[c.playerId] = String(c.amount); });
+            setCashoutAmounts(prefill);
+            setShowCashout(true);
+          }}
         >
           End Session
         </Button>
@@ -281,6 +396,8 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             onClick={() => {
               setSelectedPlayerId(player.id);
               setRebuyPlayerId(null);
+              setEarlyCashoutPlayerId(null);
+              setShowAddPlayer(false);
             }}
             className={cn(
               'flex-none flex flex-col items-center gap-1 px-4 py-2.5 rounded border transition-colors min-w-[72px]',
@@ -296,15 +413,130 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             )}
           </button>
         ))}
+        <button
+          onClick={() => {
+            setShowAddPlayer((v) => !v);
+            setSelectedPlayerId(null);
+            setRebuyPlayerId(null);
+            setEarlyCashoutPlayerId(null);
+            setAddPlayerSearch('');
+          }}
+          className={cn(
+            'flex-none flex items-center justify-center px-3 py-2.5 rounded border transition-colors min-w-[44px]',
+            showAddPlayer
+              ? 'border-primary text-primary'
+              : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+          )}
+        >
+          <span className='text-lg leading-none'>+</span>
+        </button>
       </div>
 
-      {/* Re-buy row */}
-      {selectedPlayerId && (
-        <div className='px-6 py-3 border-b border-border flex items-center justify-between gap-3'>
-          <div className='text-xs text-muted-foreground'>
-            Buy-ins: <span className='text-foreground font-medium'>${buyInTotal(selectedPlayerId).toFixed(2)}</span>
+      {/* Add player panel */}
+      {showAddPlayer && (
+        <div className='px-6 py-4 border-b border-border space-y-3'>
+          <div className='flex items-center gap-2'>
+            <div className='relative flex-1'>
+              <Input
+                autoFocus
+                placeholder='Search or add player…'
+                value={addPlayerSearch}
+                onChange={(e) => setAddPlayerSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && addPlayerSearch.trim()) {
+                    const match = players.find(
+                      (p) => p.name.toLowerCase() === addPlayerSearch.trim().toLowerCase() &&
+                        !session?.playerIds?.includes(p.id)
+                    );
+                    if (match) handleAddPlayer(match);
+                    else handleAddNewPlayer(addPlayerSearch.trim());
+                  }
+                }}
+                className='h-9 text-sm'
+                disabled={addingPlayer}
+              />
+            </div>
+            <div className='relative w-24 shrink-0'>
+              <span className='absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs'>$</span>
+              <Input
+                type='number'
+                min='0'
+                step='5'
+                value={addPlayerBuyIn}
+                onChange={(e) => setAddPlayerBuyIn(e.target.value)}
+                className='h-9 pl-6 text-sm'
+                disabled={addingPlayer}
+                placeholder='20'
+              />
+            </div>
           </div>
-          {rebuyPlayerId === selectedPlayerId ? (
+          {addPlayerSearch.trim() && (() => {
+            const matches = players.filter(
+              (p) =>
+                p.name.toLowerCase().includes(addPlayerSearch.toLowerCase()) &&
+                !session?.playerIds?.includes(p.id)
+            );
+            if (matches.length === 0) {
+              return (
+                <button
+                  onClick={() => handleAddNewPlayer(addPlayerSearch.trim())}
+                  disabled={addingPlayer}
+                  className='w-full text-left text-sm px-3 py-2 rounded border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-40'
+                >
+                  + Create &ldquo;{addPlayerSearch.trim()}&rdquo;
+                </button>
+              );
+            }
+            return (
+              <div className='border border-border rounded-md divide-y divide-border'>
+                {matches.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleAddPlayer(p)}
+                    disabled={addingPlayer}
+                    className='w-full text-left px-3 py-2.5 text-sm hover:bg-secondary transition-colors disabled:opacity-40'
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {selectedPlayerId && (
+        <div className='px-6 py-3 border-b border-border space-y-3'>
+          <div className='flex items-center justify-between gap-3'>
+            <div className='text-xs text-muted-foreground'>
+              Buy-ins: <span className='text-foreground font-medium'>${buyInTotal(selectedPlayerId).toFixed(2)}</span>
+              {playerCashout(selectedPlayerId) && (
+                <span className='ml-2 text-green-500 font-medium'>
+                  · Cashed out ${playerCashout(selectedPlayerId)!.amount.toFixed(2)}
+                </span>
+              )}
+            </div>
+            {rebuyPlayerId !== selectedPlayerId && earlyCashoutPlayerId !== selectedPlayerId && (
+              <div className='flex gap-3'>
+                {!playerCashout(selectedPlayerId) && (
+                  <button
+                    onClick={() => { setEarlyCashoutPlayerId(selectedPlayerId); setEarlyCashoutAmount(''); setRebuyPlayerId(null); }}
+                    className='text-xs tracking-widest uppercase text-muted-foreground hover:text-green-500 transition-colors'
+                  >
+                    Cash Out
+                  </button>
+                )}
+                <button
+                  onClick={() => { setRebuyPlayerId(selectedPlayerId); setRebuyAmount(''); setEarlyCashoutPlayerId(null); }}
+                  className='text-xs tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors'
+                >
+                  + Re-buy
+                </button>
+              </div>
+            )}
+          </div>
+
+          {rebuyPlayerId === selectedPlayerId && (
             <div className='flex items-center gap-2'>
               <div className='relative w-28'>
                 <span className='absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs'>$</span>
@@ -334,13 +566,38 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 Cancel
               </button>
             </div>
-          ) : (
-            <button
-              onClick={() => { setRebuyPlayerId(selectedPlayerId); setRebuyAmount(''); }}
-              className='text-xs tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors'
-            >
-              + Re-buy
-            </button>
+          )}
+
+          {earlyCashoutPlayerId === selectedPlayerId && (
+            <div className='flex items-center gap-2'>
+              <div className='relative w-28'>
+                <span className='absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs'>$</span>
+                <Input
+                  type='number'
+                  min='0'
+                  step='1'
+                  autoFocus
+                  placeholder='0'
+                  value={earlyCashoutAmount}
+                  onChange={(e) => setEarlyCashoutAmount(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEarlyCashout(selectedPlayerId)}
+                  className='h-8 pl-6 text-sm'
+                />
+              </div>
+              <button
+                onClick={() => handleEarlyCashout(selectedPlayerId)}
+                disabled={earlyCashingOut || !earlyCashoutAmount}
+                className='text-xs tracking-widest uppercase text-green-500 disabled:opacity-40'
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => { setEarlyCashoutPlayerId(null); setEarlyCashoutAmount(''); }}
+                className='text-xs text-muted-foreground'
+              >
+                Cancel
+              </button>
+            </div>
           )}
         </div>
       )}

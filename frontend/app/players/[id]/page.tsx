@@ -121,6 +121,13 @@ export default function PlayerDetailPage({
   const [paymentNote, setPaymentNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  async function handleRequestReceipt() {
+    if (!player?.phone) return;
+    const { token } = await apiFetch<{ token: string }>(`/api/players/${id}/portal-token`);
+    const url = `${window.location.origin}/player-receipt/${id}/${token}`;
+    window.location.href = `sms:${player.phone}&body=${encodeURIComponent(url)}`;
+  }
+
   async function handlePayment() {
     const amount = parseFloat(paymentAmount);
     if (!amount || amount <= 0 || !paymentMode) return;
@@ -151,7 +158,8 @@ export default function PlayerDetailPage({
 
   const sessionGroups = sessions
     .filter((s) =>
-      orders.some((o) => o.sessionId === s.id && o.playerId === id),
+      orders.some((o) => o.sessionId === s.id && o.playerId === id) ||
+      buyIns.some((b) => b.sessionId === s.id && b.playerId === id),
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map((session) => {
@@ -289,32 +297,42 @@ export default function PlayerDetailPage({
       </div>
 
       {paymentMode === null ? (
-        <div className='flex gap-3 mb-8'>
-          <button
-            onClick={() => {
-              setPaymentMode('received');
-              setPaymentAmount(balance > 0 ? balance.toFixed(2) : '');
-            }}
-            className='flex-1 py-3 border border-border rounded text-xs tracking-widest uppercase text-muted-foreground hover:border-primary hover:text-primary transition-colors'
-          >
-            They Paid Me
-          </button>
-          <button
-            onClick={() => {
-              setPaymentMode('sent');
-              setPaymentAmount(balance < 0 ? Math.abs(balance).toFixed(2) : '');
-            }}
-            className='flex-1 py-3 border border-border rounded text-xs tracking-widest uppercase text-muted-foreground hover:border-green-500 hover:text-green-500 transition-colors'
-          >
-            I Paid Them
-          </button>
-          {player.venmo && balance < 0 && (
+        <div className='space-y-3 mb-8'>
+          <div className='flex gap-3'>
             <button
-              onClick={handlePayVenmo}
-              className='flex-1 py-3 rounded text-xs tracking-widest uppercase font-semibold text-white transition-opacity hover:opacity-90'
-              style={{ background: '#3D95CE' }}
+              onClick={() => {
+                setPaymentMode('received');
+                setPaymentAmount(balance > 0 ? balance.toFixed(2) : '');
+              }}
+              className='flex-1 py-3 border border-border rounded text-xs tracking-widest uppercase text-muted-foreground hover:border-primary hover:text-primary transition-colors'
             >
-              Pay
+              They Paid Me
+            </button>
+            <button
+              onClick={() => {
+                setPaymentMode('sent');
+                setPaymentAmount(balance < 0 ? Math.abs(balance).toFixed(2) : '');
+              }}
+              className='flex-1 py-3 border border-border rounded text-xs tracking-widest uppercase text-muted-foreground hover:border-green-500 hover:text-green-500 transition-colors'
+            >
+              I Paid Them
+            </button>
+            {player.venmo && balance < 0 && (
+              <button
+                onClick={handlePayVenmo}
+                className='flex-1 py-3 rounded text-xs tracking-widest uppercase font-semibold text-white transition-opacity hover:opacity-90'
+                style={{ background: '#3D95CE' }}
+              >
+                Pay
+              </button>
+            )}
+          </div>
+          {player.phone && (
+            <button
+              onClick={handleRequestReceipt}
+              className='w-full py-3 border border-border rounded text-xs tracking-widest uppercase text-muted-foreground hover:border-primary hover:text-primary transition-colors'
+            >
+              Request · Text Full History
             </button>
           )}
         </div>

@@ -40,6 +40,7 @@ func SetupRoutes(r *gin.Engine) {
 		bar.GET("/sessions", handlers.GetSessions)
 		bar.POST("/sessions", handlers.CreateSession)
 		bar.PATCH("/sessions/:id", handlers.UpdateSession)
+		bar.DELETE("/sessions/:id", handlers.DeleteSession)
 
 		bar.GET("/orders", handlers.GetOrders)
 		bar.POST("/orders", handlers.CreateOrder)

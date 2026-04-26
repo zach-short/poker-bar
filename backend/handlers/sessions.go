@@ -124,3 +124,26 @@ func UpdateSession(c *gin.Context) {
 
 	c.JSON(http.StatusOK, updated)
 }
+
+func DeleteSession(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	res, err := config.GetCollection("sessions").DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil || res.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Session not found"})
+		return
+	}
+
+	config.GetCollection("orders").DeleteMany(ctx, bson.M{"sessionId": id})
+	config.GetCollection("buyins").DeleteMany(ctx, bson.M{"sessionId": id})
+	config.GetCollection("cashouts").DeleteMany(ctx, bson.M{"sessionId": id})
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
+}

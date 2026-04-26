@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import useSWR from 'swr';
-import { fetcher, formatDate, formatTime, Session, Player, Order } from '@/lib/bar-api';
+import { fetcher, formatDate, formatTime, Session, Player, Order, BuyIn, Cashout } from '@/lib/bar-api';
 
 export default function PublicReceiptPage({
   params,
@@ -26,14 +26,30 @@ export default function PublicReceiptPage({
     `/api/orders?sessionId=${sessionId}`,
     fetcher,
   );
+  const { data: buyIns = [] } = useSWR<BuyIn[]>(
+    `/api/buyins?sessionId=${sessionId}`,
+    fetcher,
+  );
+  const { data: cashouts = [] } = useSWR<Cashout[]>(
+    `/api/cashouts?sessionId=${sessionId}`,
+    fetcher,
+  );
+
   const playerOrders = orders
     .filter((o) => o.playerId === playerId)
     .sort(
       (a, b) =>
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     );
+  const playerBuyIns = buyIns
+    .filter((b) => b.playerId === playerId)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const playerCashout = cashouts.find((c) => c.playerId === playerId);
 
-  const total = playerOrders.reduce((s, o) => s + o.price, 0);
+  const drinkTotal = playerOrders.reduce((s, o) => s + o.price, 0);
+  const buyInTotal = playerBuyIns.reduce((s, b) => s + b.amount, 0);
+  const cashoutAmount = playerCashout?.amount ?? 0;
+  const total = drinkTotal + buyInTotal - cashoutAmount;
 
   const venmoNote = encodeURIComponent(`${session?.name ?? ''}`);
   const venmoRecipient = process.env.NEXT_PUBLIC_VENMO_HANDLE?.replace(
@@ -224,15 +240,31 @@ export default function PublicReceiptPage({
 
           <hr className='r-divider' />
 
+          {playerBuyIns.map((b, i) => (
+            <div key={b.id} className='r-row'>
+              <span className='r-time' />
+              <span className='r-drink'>{i === 0 ? 'Buy-in' : 'Re-buy'}</span>
+              <span className='r-price'>+${b.amount.toFixed(2)}</span>
+            </div>
+          ))}
+
           {playerOrders.map((order) => (
             <div key={order.id} className='r-row'>
               <span className='r-time'>{formatTime(order.timestamp)}</span>
               <span className='r-drink'>{order.drinkName}</span>
-              <span className='r-price'>${order.price.toFixed(2)}</span>
+              <span className='r-price'>+${order.price.toFixed(2)}</span>
             </div>
           ))}
 
-          {playerOrders.length === 0 && (
+          {playerCashout && (
+            <div className='r-row' style={{ color: '#22c55e' }}>
+              <span className='r-time' />
+              <span className='r-drink'>Cash out</span>
+              <span className='r-price'>−${cashoutAmount.toFixed(2)}</span>
+            </div>
+          )}
+
+          {playerOrders.length === 0 && playerBuyIns.length === 0 && (
             <p
               style={{
                 textAlign: 'center',
@@ -241,14 +273,14 @@ export default function PublicReceiptPage({
                 padding: '0.75rem 0',
               }}
             >
-              No orders
+              No activity
             </p>
           )}
 
           <hr className='r-divider' />
 
           <div className='r-total'>
-            <span>Total</span>
+            <span>Total owed</span>
             <span>${total.toFixed(2)}</span>
           </div>
 
