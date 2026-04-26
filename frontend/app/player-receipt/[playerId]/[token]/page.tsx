@@ -84,7 +84,7 @@ export default function PlayerReceiptPage({
 
   function handleVenmo() {
     const h = VENMO_HANDLE.replace(/^@/, '');
-    const note = encodeURIComponent('Poker Bar');
+    const note = encodeURIComponent('poker');
     if (balance > 0) {
       // Player owes owner — player pays owner
       const deep = `venmo://paycharge?txn=pay&recipients=${h}&amount=${balance.toFixed(2)}&note=${note}`;

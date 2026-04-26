@@ -110,7 +110,7 @@ export function canMake(drink: DrinkRecipe, inventory: InventoryItem[]): boolean
 
 export function openVenmo(handle: string, amount: number) {
   const h = handle.replace(/^@/, '');
-  const note = encodeURIComponent('Poker Bar');
+  const note = encodeURIComponent('poker');
   const deepLink = `venmo://paycharge?txn=pay&recipients=${h}&amount=${amount.toFixed(2)}&note=${note}`;
   const webUrl = `https://account.venmo.com/pay?recipients=${h}&amount=${amount.toFixed(2)}&note=${note}`;
   window.location.href = deepLink;
